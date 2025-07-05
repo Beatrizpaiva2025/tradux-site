@@ -1,13 +1,765 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Tradux Site</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRADUX - Professional Translation Services</title>
+    <meta name="description" content="Advanced AI technology combined with expert human review. Fast, accurate, and certified translations for the modern world.">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="images/favicon.ico">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/normalize.css">
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <h1>Bem-vindo ao site Tradux!</h1>
-  <p>Site publicado com sucesso via Vercel e GitHub.</p>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-inner">
+                <div class="logo">
+                    <a href="index.html">
+                        <img src="images/tradux-logo.svg" alt="TRADUX Logo">
+                        <span>TRADUX</span>
+                    </a>
+                </div>
+                
+                <nav class="main-nav">
+                    <ul class="nav-links">
+                        <li><a href="#services">Services</a></li>
+                        <li><a href="#process">How It Works</a></li>
+                        <li><a href="#about">About Us</a></li>
+                        <li><a href="#faq">FAQ</a></li>
+                        <li><a href="#contact">Contact</a></li>
+                    </ul>
+                </nav>
+                
+                <div class="header-actions">
+                    <div class="language-selector">
+                        <a href="#" class="active">EN</a>
+                        <a href="#">PT</a>
+                        <a href="#">ES</a>
+                    </div>
+                    <a href="#order-form" class="btn btn-primary">Start Translation</a>
+                    <button class="mobile-menu-toggle" aria-label="Toggle menu">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1>Professional Translations Powered by AI</h1>
+                <p class="hero-subtitle">Advanced AI technology combined with expert human review. Fast, accurate, and certified translations for the modern world.</p>
+                <a href="#order-form" class="btn btn-primary btn-large">Start Your Translation</a>
+                
+                <div class="trust-badges">
+                    <div class="badge">
+                        <img src="images/uscis-icon.svg" alt="USCIS Accepted">
+                        <span>USCIS Accepted</span>
+                    </div>
+                    <div class="badge">
+                        <img src="images/certified-icon.svg" alt="Legally Certified">
+                        <span>Legally Certified</span>
+                    </div>
+                    <div class="badge">
+                        <img src="images/support-icon.svg" alt="24/7 Support">
+                        <span>24/7 Support</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="hero-image">
+                <img src="images/hero-image.svg" alt="AI Translation Visualization">
+            </div>
+        </div>
+    </section>
+
+    <!-- Services Section -->
+    <section id="services" class="services">
+        <div class="container">
+            <h2 class="section-title">Our Translation Services</h2>
+            <p class="section-subtitle">Choose the service that fits your needs</p>
+            
+            <div class="service-cards">
+                <div class="service-card">
+                    <div class="service-icon">🇺🇸</div>
+                    <h3>Certified Translation for USA</h3>
+                    <div class="price">$23.99 <span>per page</span></div>
+                    <p>Official documents with legal certification for the United States</p>
+                    <ul class="features">
+                        <li>Any language → English</li>
+                        <li>AI + Human Review + Legal Certification</li>
+                        <li>Accepted by USCIS, universities, companies</li>
+                        <li>Standard delivery: 24 hours</li>
+                    </ul>
+                    <a href="#order-form" class="btn btn-primary" data-service="certified">Select</a>
+                </div>
+                
+                <div class="service-card">
+                    <div class="service-icon">🔧</div>
+                    <h3>Technical Translation</h3>
+                    <div class="price">$0.04 <span>per word</span></div>
+                    <p>Professional technical documents and specialized content</p>
+                    <ul class="features">
+                        <li>AI + Technical Human Review</li>
+                        <li>Manuals, documentation, guides</li>
+                        <li>Specialized terminology</li>
+                        <li>Minimum: 100 words</li>
+                    </ul>
+                    <a href="#order-form" class="btn btn-primary" data-service="technical">Select</a>
+                </div>
+                
+                <div class="service-card">
+                    <div class="service-icon">🚀</div>
+                    <h3>Express Translation</h3>
+                    <div class="price">From $0.05 <span>per word</span></div>
+                    <p>Fast and accurate translations for urgent needs</p>
+                    <ul class="features">
+                        <li>Any language pair</li>
+                        <li>AI + Express Human Review</li>
+                        <li>Business documents, emails, correspondence</li>
+                        <li>Delivery: as fast as 4 hours</li>
+                    </ul>
+                    <a href="#order-form" class="btn btn-primary" data-service="express">Select</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Process Section -->
+    <section id="process" class="process">
+        <div class="container">
+            <h2 class="section-title">How It Works</h2>
+            <p class="section-subtitle">Simple, fast, and reliable translations in 4 easy steps</p>
+            
+            <div class="process-timeline">
+                <div class="process-step">
+                    <div class="step-number">1</div>
+                    <div class="step-icon">📋</div>
+                    <h3>Choose Service</h3>
+                    <p>Select the type of translation service you need</p>
+                </div>
+                
+                <div class="process-step">
+                    <div class="step-number">2</div>
+                    <div class="step-icon">📄</div>
+                    <h3>Upload Document</h3>
+                    <p>Upload your file or paste your text</p>
+                </div>
+                
+                <div class="process-step">
+                    <div class="step-number">3</div>
+                    <div class="step-icon">⚙️</div>
+                    <h3>AI Translation</h3>
+                    <p>Our AI translates with human expert review</p>
+                </div>
+                
+                <div class="process-step">
+                    <div class="step-number">4</div>
+                    <div class="step-icon">✅</div>
+                    <h3>Receive & Approve</h3>
+                    <p>Get your certified translation delivered</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="about">
+        <div class="container">
+            <div class="about-inner">
+                <div class="about-image">
+                    <img src="images/about-image.jpg" alt="TRADUX Team">
+                </div>
+                
+                <div class="about-content">
+                    <h2 class="section-title">About TRADUX</h2>
+                    <p class="section-subtitle">Combining human expertise with cutting-edge AI technology</p>
+                    
+                    <div class="about-text">
+                        <p>TRADUX was founded with a simple mission: make professional translations accessible, fast, and affordable without compromising quality.</p>
+                        
+                        <p>Our team combines experienced translators with AI specialists to deliver the perfect balance of technology and human expertise. We've developed proprietary AI models specifically trained on legal, technical, and business documents.</p>
+                        
+                        <p>Every translation goes through our unique two-step process: advanced AI translation followed by expert human review to ensure accuracy, context, and proper terminology.</p>
+                    </div>
+                    
+                    <div class="differentials">
+                        <div class="differential">
+                            <div class="differential-icon">⚡</div>
+                            <h4>Speed</h4>
+                            <p>AI-powered translations delivered up to 10x faster</p>
+                        </div>
+                        
+                        <div class="differential">
+                            <div class="differential-icon">🔍</div>
+                            <h4>Accuracy</h4>
+                            <p>99.8% accuracy with human expert verification</p>
+                        </div>
+                        
+                        <div class="differential">
+                            <div class="differential-icon">🔒</div>
+                            <h4>Security</h4>
+                            <p>Bank-level encryption for all your documents</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="testimonials">
+        <div class="container">
+            <h2 class="section-title">What Our Clients Say</h2>
+            
+            <div class="testimonial-slider">
+                <div class="testimonial">
+                    <div class="quote-mark">"</div>
+                    <p class="testimonial-text">TRADUX delivered my certified translation for USCIS in just 12 hours. The quality was perfect and it was accepted without any issues. Highly recommended!</p>
+                    <div class="testimonial-author">
+                        <img src="images/client1.jpg" alt="Client Photo">
+                        <div class="author-info">
+                            <h4>Maria Rodriguez</h4>
+                            <p>Immigration Applicant</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="testimonial">
+                    <div class="quote-mark">"</div>
+                    <p class="testimonial-text">As a law firm handling multiple immigration cases, we need reliable translations fast. TRADUX has become our go-to service. Their AI technology combined with human review gives us confidence in every document.</p>
+                    <div class="testimonial-author">
+                        <img src="images/client2.jpg" alt="Client Photo">
+                        <div class="author-info">
+                            <h4>John Stevenson</h4>
+                            <p>Immigration Attorney</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="testimonial">
+                    <div class="quote-mark">"</div>
+                    <p class="testimonial-text">We needed our technical documentation translated into 5 languages with specialized terminology. TRADUX handled it perfectly, maintaining all technical terms accurately. The turnaround time was impressive!</p>
+                    <div class="testimonial-author">
+                        <img src="images/client3.jpg" alt="Client Photo">
+                        <div class="author-info">
+                            <h4>Carlos Mendes</h4>
+                            <p>Technical Director, TechSolutions Inc.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="slider-controls">
+                <button class="prev-btn" aria-label="Previous testimonial">←</button>
+                <div class="slider-dots">
+                    <span class="dot active"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                </div>
+                <button class="next-btn" aria-label="Next testimonial">→</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section id="faq" class="faq">
+        <div class="container">
+            <h2 class="section-title">Frequently Asked Questions</h2>
+            
+            <div class="faq-container">
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>How long does it take to receive my certified translation?</h3>
+                        <span class="toggle-icon">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Our standard delivery time for certified translations is 24 hours. We also offer express options: 12-hour delivery (50% additional cost) and 4-hour delivery (100% additional cost) for urgent needs.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>Are your certified translations accepted by USCIS?</h3>
+                        <span class="toggle-icon">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes! All our certified translations comply with USCIS requirements and include the necessary certification statement. Our translations are accepted by USCIS, universities, and other government agencies.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>What file formats do you accept?</h3>
+                        <span class="toggle-icon">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>We accept a wide range of file formats including PDF, DOC, DOCX, JPG, PNG, and TXT. If you have a different format, please contact us and we'll do our best to accommodate your needs.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>How does your AI + human review process work?</h3>
+                        <span class="toggle-icon">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Our process combines the speed of AI with the accuracy of human expertise. First, your document is processed by our advanced AI translation engine, which has been trained on millions of professional translations. Then, a human translator reviews the result, ensuring terminology accuracy, context appropriateness, and proper formatting.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>Do you offer a satisfaction guarantee?</h3>
+                        <span class="toggle-icon">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Absolutely! We stand behind our translations with a 100% satisfaction guarantee. If your translation is not accepted by the intended recipient due to quality issues, we'll provide a full refund or revise the translation at no additional cost.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="faq-cta">
+                <p>Don't see your question here?</p>
+                <a href="#contact" class="btn btn-secondary">Contact Us</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Order Form Section -->
+    <section id="order-form" class="order-form">
+        <div class="container">
+            <h2 class="section-title">Start Your Translation</h2>
+            <p class="section-subtitle">Fill out the form below to get started</p>
+            
+            <div class="order-form-container">
+                <div class="order-steps">
+                    <div class="order-step active" id="step-1">
+                        <div class="step-header">
+                            <div class="step-number">1</div>
+                            <h3>Choose Your Service</h3>
+                        </div>
+                        <div class="step-content">
+                            <div class="service-options">
+                                <div class="service-option" data-service="certified">
+                                    <input type="radio" name="service" id="service-certified" value="certified" checked>
+                                    <label for="service-certified">
+                                        <div class="service-option-icon">🇺🇸</div>
+                                        <div class="service-option-info">
+                                            <h4>Certified Translation for USA</h4>
+                                            <p>$23.99 per page</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                
+                                <div class="service-option" data-service="technical">
+                                    <input type="radio" name="service" id="service-technical" value="technical">
+                                    <label for="service-technical">
+                                        <div class="service-option-icon">🔧</div>
+                                        <div class="service-option-info">
+                                            <h4>Technical Translation</h4>
+                                            <p>$0.04 per word</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                
+                                <div class="service-option" data-service="express">
+                                    <input type="radio" name="service" id="service-express" value="express">
+                                    <label for="service-express">
+                                        <div class="service-option-icon">🚀</div>
+                                        <div class="service-option-info">
+                                            <h4>Express Translation</h4>
+                                            <p>From $0.05 per word</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="step-actions">
+                                <button class="btn btn-primary next-step" data-next="step-2">Continue</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="order-step" id="step-2">
+                        <div class="step-header">
+                            <div class="step-number">2</div>
+                            <h3>How much do you need to translate?</h3>
+                        </div>
+                        <div class="step-content">
+                            <div class="quantity-selector">
+                                <div class="quantity-field" id="pages-field">
+                                    <label for="pages">Number of pages:</label>
+                                    <div class="quantity-input">
+                                        <button class="quantity-btn minus" data-field="pages">-</button>
+                                        <input type="number" id="pages" name="pages" min="1" value="1">
+                                        <button class="quantity-btn plus" data-field="pages">+</button>
+                                    </div>
+                                    <p class="field-note">Each page contains approximately 250 words</p>
+                                </div>
+                                
+                                <div class="quantity-field" id="words-field" style="display: none;">
+                                    <label for="words">Number of words:</label>
+                                    <div class="quantity-input">
+                                        <button class="quantity-btn minus" data-field="words">-</button>
+                                        <input type="number" id="words" name="words" min="100" value="100">
+                                        <button class="quantity-btn plus" data-field="words">+</button>
+                                    </div>
+                                    <p class="field-note">Minimum: 100 words</p>
+                                </div>
+                            </div>
+                            <div class="step-actions">
+                                <button class="btn btn-secondary prev-step" data-prev="step-1">Back</button>
+                                <button class="btn btn-primary next-step" data-next="step-3">Continue</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="order-step" id="step-3">
+                        <div class="step-header">
+                            <div class="step-number">3</div>
+                            <h3>Choose Delivery Speed</h3>
+                        </div>
+                        <div class="step-content">
+                            <div class="delivery-options">
+                                <div class="delivery-option">
+                                    <input type="radio" name="delivery" id="delivery-standard" value="standard" checked>
+                                    <label for="delivery-standard">
+                                        <h4>Standard</h4>
+                                        <p class="delivery-time">24 hours</p>
+                                        <p class="delivery-price">Normal price</p>
+                                    </label>
+                                </div>
+                                
+                                <div class="delivery-option">
+                                    <input type="radio" name="delivery" id="delivery-fast" value="fast">
+                                    <label for="delivery-fast">
+                                        <h4>Fast</h4>
+                                        <p class="delivery-time">12 hours</p>
+                                        <p class="delivery-price">+50% more</p>
+                                    </label>
+                                </div>
+                                
+                                <div class="delivery-option">
+                                    <input type="radio" name="delivery" id="delivery-urgent" value="urgent">
+                                    <label for="delivery-urgent">
+                                        <h4>Urgent</h4>
+                                        <p class="delivery-time">4 hours</p>
+                                        <p class="delivery-price">+100% more</p>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="step-actions">
+                                <button class="btn btn-secondary prev-step" data-prev="step-2">Back</button>
+                                <button class="btn btn-primary next-step" data-next="step-4">Continue</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="order-step" id="step-4">
+                        <div class="step-header">
+                            <div class="step-number">4</div>
+                            <h3>Upload Document or Type Text</h3>
+                        </div>
+                        <div class="step-content">
+                            <div class="document-upload">
+                                <div class="upload-area" id="upload-area">
+                                    <img src="images/document-icon.svg" alt="Document Icon">
+                                    <h4>Upload your document here</h4>
+                                    <p>Supports PDF, DOC, DOCX, TXT, JPG, PNG and more</p>
+                                    <input type="file" id="file-upload" name="file-upload" class="file-input">
+                                    <label for="file-upload" class="btn btn-secondary">Choose File</label>
+                                    <div id="file-name" class="file-name"></div>
+                                </div>
+                                
+                                <div class="text-divider">
+                                    <span>OR TYPE YOUR TEXT</span>
+                                </div>
+                                
+                                <div class="text-area">
+                                    <textarea id="translation-text" name="translation-text" placeholder="Enter the text you want to translate..."></textarea>
+                                </div>
+                            </div>
+                            <div class="step-actions">
+                                <button class="btn btn-secondary prev-step" data-prev="step-3">Back</button>
+                                <button class="btn btn-primary next-step" data-next="step-5">Continue</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="order-step" id="step-5">
+                        <div class="step-header">
+                            <div class="step-number">5</div>
+                            <h3>Select Languages</h3>
+                        </div>
+                        <div class="step-content">
+                            <div class="language-selection">
+                                <div class="language-field">
+                                    <label for="from-language">From Language:</label>
+                                    <select id="from-language" name="from-language">
+                                        <option value="auto">🔍 Auto-detect</option>
+                                        <option value="en">🇺🇸 English</option>
+                                        <option value="es">🇪🇸 Spanish</option>
+                                        <option value="pt">🇧🇷 Portuguese</option>
+                                        <option value="fr">🇫🇷 French</option>
+                                        <option value="de">🇩🇪 German</option>
+                                        <option value="it">🇮🇹 Italian</option>
+                                        <option value="zh">🇨🇳 Chinese</option>
+                                        <option value="ja">🇯🇵 Japanese</option>
+                                        <option value="ko">🇰🇷 Korean</option>
+                                        <option value="ru">🇷🇺 Russian</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="language-field">
+                                    <label for="to-language">To Language:</label>
+                                    <select id="to-language" name="to-language">
+                                        <option value="en">🇺🇸 English</option>
+                                        <option value="es">🇪🇸 Spanish</option>
+                                        <option value="pt">🇧🇷 Portuguese</option>
+                                        <option value="fr">🇫🇷 French</option>
+                                        <option value="de">🇩🇪 German</option>
+                                        <option value="it">🇮🇹 Italian</option>
+                                        <option value="zh">🇨🇳 Chinese</option>
+                                        <option value="ja">🇯🇵 Japanese</option>
+                                        <option value="ko">🇰🇷 Korean</option>
+                                        <option value="ru">🇷🇺 Russian</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="step-actions">
+                                <button class="btn btn-secondary prev-step" data-prev="step-4">Back</button>
+                                <button class="btn btn-primary next-step" data-next="step-6">Continue</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="order-step" id="step-6">
+                        <div class="step-header">
+                            <div class="step-number">6</div>
+                            <h3>Your Information</h3>
+                        </div>
+                        <div class="step-content">
+                            <div class="contact-form">
+                                <div class="form-group">
+                                    <label for="full-name">Full Name *</label>
+                                    <input type="text" id="full-name" name="full-name" placeholder="Enter your full name" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="email">Email Address *</label>
+                                    <input type="email" id="email" name="email" placeholder="Enter your email address" required>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="country-code">Country Code</label>
+                                        <select id="country-code" name="country-code">
+                                            <option value="+1">🇺🇸 +1 (USA)</option>
+                                            <option value="+55">🇧🇷 +55 (Brazil)</option>
+                                            <option value="+34">🇪🇸 +34 (Spain)</option>
+                                            <option value="+33">🇫🇷 +33 (France)</option>
+                                            <option value="+49">🇩🇪 +49 (Germany)</option>
+                                            <option value="+39">🇮🇹 +39 (Italy)</option>
+                                            <option value="+44">🇬🇧 +44 (UK)</option>
+                                            <option value="+86">🇨🇳 +86 (China)</option>
+                                            <option value="+81">🇯🇵 +81 (Japan)</option>
+                                            <option value="+82">🇰🇷 +82 (Korea)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="phone">Phone Number *</label>
+                                        <input type="tel" id="phone" name="phone" placeholder="Enter your phone number" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="special-instructions">Special Instructions (Optional)</label>
+                                    <textarea id="special-instructions" name="special-instructions" placeholder="Any special requirements or notes for your translation..."></textarea>
+                                </div>
+                            </div>
+                            <div class="step-actions">
+                                <button class="btn btn-secondary prev-step" data-prev="step-5">Back</button>
+                                <button class="btn btn-primary" id="submit-order">Confirm Order</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="order-summary">
+                    <h3>📋 Order Summary</h3>
+                    <div class="summary-item">
+                        <span class="summary-label">Service</span>
+                        <span class="summary-value" id="summary-service">USA Certified</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Amount</span>
+                        <span class="summary-value" id="summary-amount">1 page</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Delivery</span>
+                        <span class="summary-value" id="summary-delivery">24 hours (Standard)</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Languages</span>
+                        <span class="summary-value" id="summary-languages">Auto → English</span>
+                    </div>
+                    <div class="summary-divider"></div>
+                    <div class="summary-item total">
+                        <span class="summary-label">Total Price</span>
+                        <span class="summary-value" id="summary-price">$23.99</span>
+                    </div>
+                    <div class="summary-actions">
+                        <button class="btn btn-primary btn-block" id="summary-confirm">🚀 Confirm Order</button>
+                        <button class="btn btn-secondary btn-block" id="summary-contact">💬 Contact Support</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact">
+        <div class="container">
+            <h2 class="section-title">Contact Us</h2>
+            <p class="section-subtitle">We're here to help with any questions</p>
+            
+            <div class="contact-container">
+                <div class="contact-info">
+                    <div class="contact-method">
+                        <div class="contact-icon">📧</div>
+                        <h3>Email</h3>
+                        <p><a href="mailto:info@tradux.online">info@tradux.online</a></p>
+                    </div>
+                    
+                    <div class="contact-method">
+                        <div class="contact-icon">📱</div>
+                        <h3>WhatsApp</h3>
+                        <p><a href="https://wa.me/1234567890">+1 (234) 567-890</a></p>
+                    </div>
+                    
+                    <div class="contact-method">
+                        <div class="contact-icon">⏰</div>
+                        <h3>Hours</h3>
+                        <p>24/7 Support Available</p>
+                    </div>
+                </div>
+                
+                <div class="contact-form-container">
+                    <form class="contact-form">
+                        <div class="form-group">
+                            <label for="contact-name">Your Name</label>
+                            <input type="text" id="contact-name" name="contact-name" placeholder="Enter your name" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="contact-email">Your Email</label>
+                            <input type="email" id="contact-email" name="contact-email" placeholder="Enter your email" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="contact-subject">Subject</label>
+                            <input type="text" id="contact-subject" name="contact-subject" placeholder="Enter subject" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="contact-message">Message</label>
+                            <textarea id="contact-message" name="contact-message" placeholder="Enter your message" required></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary btn-block">Send Message</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-top">
+                <div class="footer-logo">
+                    <img src="images/tradux-logo-white.svg" alt="TRADUX Logo">
+                    <span>TRADUX</span>
+                </div>
+                
+                <div class="footer-nav">
+                    <div class="footer-nav-column">
+                        <h4>Services</h4>
+                        <ul>
+                            <li><a href="#services">Certified Translation</a></li>
+                            <li><a href="#services">Technical Translation</a></li>
+                            <li><a href="#services">Express Translation</a></li>
+                            <li><a href="#services">Document Types</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="footer-nav-column">
+                        <h4>Company</h4>
+                        <ul>
+                            <li><a href="#about">About Us</a></li>
+                            <li><a href="#process">How It Works</a></li>
+                            <li><a href="#faq">FAQ</a></li>
+                            <li><a href="#contact">Contact</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="footer-nav-column">
+                        <h4>Legal</h4>
+                        <ul>
+                            <li><a href="#">Terms of Service</a></li>
+                            <li><a href="#">Privacy Policy</a></li>
+                            <li><a href="#">Refund Policy</a></li>
+                            <li><a href="#">Certification</a></li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="footer-contact">
+                    <h4>Get in Touch</h4>
+                    <p><a href="mailto:info@tradux.online">info@tradux.online</a></p>
+                    <p><a href="https://wa.me/1234567890">WhatsApp: +1 (234) 567-890</a></p>
+                    <div class="social-links">
+                        <a href="#" aria-label="Facebook"><img src="images/facebook-icon.svg" alt="Facebook"></a>
+                        <a href="#" aria-label="Twitter"><img src="images/twitter-icon.svg" alt="Twitter"></a>
+                        <a href="#" aria-label="LinkedIn"><img src="images/linkedin-icon.svg" alt="LinkedIn"></a>
+                        <a href="#" aria-label="Instagram"><img src="images/instagram-icon.svg" alt="Instagram"></a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2025 TRADUX. All rights reserved.</p>
+                <div class="language-selector">
+                    <a href="#" class="active">English</a>
+                    <a href="#">Português</a>
+                    <a href="#">Español</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- WhatsApp Button -->
+    <a href="https://wa.me/1234567890" class="whatsapp-button" aria-label="Contact us on WhatsApp">
+        <img src="images/whatsapp-icon.svg" alt="WhatsApp">
+    </a>
+
+    <!-- JavaScript -->
+    <script src="js/script.js"></script>
 </body>
 </html>
+
