@@ -1,100 +1,85 @@
-import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, type FormEvent, type ChangeEvent } from 'react';
 import { toast } from 'sonner';
+import { Link } from 'wouter';
 
 export default function Home() {
   const [headerScrolled, setHeaderScrolled] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [formSuccess, setFormSuccess] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // ROI Calculator state
-  const [currentCost, setCurrentCost] = useState(5000);
-  const [monthlyWords, setMonthlyWords] = useState(50000);
-  const [teamSize, setTeamSize] = useState(5);
-  const [languages, setLanguages] = useState(5);
+  // Quote calculator state
+  const [docType, setDocType] = useState('birth-certificate');
+  const [numPages, setNumPages] = useState(1);
+  const [sourceLang, setSourceLang] = useState('portuguese');
+  const [targetLang, setTargetLang] = useState('english');
+  const [urgency, setUrgency] = useState('standard');
 
-  // Scroll animation refs
   const fadeRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Header scroll effect
+  // Header scroll
   useEffect(() => {
-    const handleScroll = () => {
-      setHeaderScrolled(window.scrollY > 100);
-    };
+    const handleScroll = () => setHeaderScrolled(window.scrollY > 80);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Intersection Observer for fade-in animations
+  // Intersection Observer for animations
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('animated');
-          }
+          if (entry.isIntersecting) entry.target.classList.add('animated');
         });
       },
       { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
     );
-
-    fadeRefs.current.forEach((el) => {
-      if (el) observer.observe(el);
-    });
-
+    fadeRefs.current.forEach((el) => { if (el) observer.observe(el); });
     return () => observer.disconnect();
   }, []);
 
-  // ROI calculations
-  const costPerWord = 0.02;
-  const newMonthlyCost = monthlyWords * costPerWord;
-  const monthlySavings = currentCost - newMonthlyCost;
-  const annualSavings = monthlySavings * 12;
-  const timeSaved = Math.round(teamSize * languages * 2.5);
-  const roiPercentage = currentCost > 0 ? Math.round((monthlySavings / currentCost) * 100) : 0;
+  const addFadeRef = (el: HTMLDivElement | null) => {
+    if (el && !fadeRefs.current.includes(el)) fadeRefs.current.push(el);
+  };
 
-  // Smooth scroll handler
-  const scrollToSection = useCallback((e: React.MouseEvent<HTMLAnchorElement>, sectionId: string) => {
+  // Smooth scroll
+  const scrollTo = useCallback((e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
-    const target = document.getElementById(sectionId);
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    setMobileMenuOpen(false);
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
-  // Enterprise form submission
-  const handleFormSubmit = (e: FormEvent<HTMLFormElement>) => {
+  // Quote calculation
+  const basePrice = 24.95;
+  const urgencyMultiplier = urgency === 'rush' ? 1.5 : urgency === 'express' ? 1.25 : 1;
+  const estimatedPrice = (basePrice * numPages * urgencyMultiplier).toFixed(2);
+
+  // File upload handler
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setSelectedFiles(Array.from(e.target.files));
+    }
+  };
+
+  // Order form submission
+  const handleOrderSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormLoading(true);
 
     setTimeout(() => {
       setFormLoading(false);
       setFormSuccess(true);
-      toast.success('Quote Sent!', {
-        description: 'Our sales team will contact you within 1 hour to discuss your custom solution.',
+      toast.success('Order Received!', {
+        description: 'We will review your documents and send you a detailed quote within 15 minutes.',
       });
 
       setTimeout(() => {
         setFormSuccess(false);
+        setSelectedFiles([]);
         (e.target as HTMLFormElement).reset();
       }, 3000);
-    }, 2500);
-  };
-
-  // Plan button click handler
-  const handlePlanClick = (planName: string) => {
-    toast.success(`${planName} Plan Selected!`, {
-      description: `You selected the ${planName} plan. Scroll up to fill the form and our team will set up your account.`,
-    });
-    const demoSection = document.getElementById('demo-form');
-    if (demoSection) {
-      demoSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
-  const addFadeRef = (el: HTMLDivElement | null) => {
-    if (el && !fadeRefs.current.includes(el)) {
-      fadeRefs.current.push(el);
-    }
+    }, 2000);
   };
 
   const currentYear = new Date().getFullYear();
@@ -102,412 +87,168 @@ export default function Home() {
   return (
     <>
       {/* Header */}
-      <header id="header" className={headerScrolled ? 'scrolled' : ''}>
+      <header id="header" className={`cert-header ${headerScrolled ? 'scrolled' : ''}`}>
         <nav className="container">
           <div className="logo">
-            <img
-              src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDMwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjwhLS0gVFJBRFVYIFRleHQgLS0+Cjx0ZXh0IHg9IjEwIiB5PSI2NSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjQyIiBmb250LXdlaWdodD0iODAwIiBmaWxsPSIjMmQ0MDVhIj5UUkFEVVg8L3RleHQ+CjwhLS0gQ29ubmVjdGlvbiBJY29uIC0tPgo8Y2lyY2xlIGN4PSIyNTAiIGN5PSIzMCIgcj0iMTAiIGZpbGw9IiMyOTgwYjkiLz4KPGxpbmUgeDE9IjI0MCIgeTE9IjQwIiB4Mj0iMjYwIiB5Mj0iNjAiIHN0cm9rZT0iIzI5ODBiOSIgc3Ryb2tlLXdpZHRoPSI1IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPGNpcmNsZSBjeD0iMjY1IiBjeT0iNjUiIHI9IjgiIGZpbGw9IiMyOTgwYjkiLz4KPC9zdmc+"
-              alt="TRADUX Logo"
-            />
+            <a href="#hero" onClick={(e) => scrollTo(e, 'hero')}>
+              <span className="logo-text">TRADUX</span>
+              <span className="logo-badge">Certified</span>
+            </a>
           </div>
-          <ul className="nav-links">
-            <li><a href="#solutions" onClick={(e) => scrollToSection(e, 'solutions')}>Solutions</a></li>
-            <li><a href="#plans" onClick={(e) => scrollToSection(e, 'plans')}>Pricing</a></li>
-            <li><a href="#case-studies" onClick={(e) => scrollToSection(e, 'case-studies')}>Case Studies</a></li>
-            <li><a href="#contact" onClick={(e) => scrollToSection(e, 'contact')}>Contact</a></li>
+          <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label="Toggle menu">
+            <i className={`fas ${mobileMenuOpen ? 'fa-times' : 'fa-bars'}`}></i>
+          </button>
+          <ul className={`nav-links ${mobileMenuOpen ? 'active' : ''}`}>
+            <li><a href="#services" onClick={(e) => scrollTo(e, 'services')}>Services</a></li>
+            <li><a href="#how-it-works" onClick={(e) => scrollTo(e, 'how-it-works')}>How It Works</a></li>
+            <li><a href="#pricing" onClick={(e) => scrollTo(e, 'pricing')}>Pricing</a></li>
+            <li><a href="#documents" onClick={(e) => scrollTo(e, 'documents')}>Documents</a></li>
+            <li><a href="#contact" onClick={(e) => scrollTo(e, 'contact')}>Contact</a></li>
+            <li>
+              <Link href="/professionals" className="nav-pro-link">
+                For Translators
+              </Link>
+            </li>
           </ul>
-          <a href="#demo-form" className="cta-btn" onClick={(e) => scrollToSection(e, 'demo-form')}>
-            <i className="fas fa-calendar"></i>
-            Book Demo
+          <a href="#order" className="cta-btn cert-cta" onClick={(e) => scrollTo(e, 'order')}>
+            <i className="fas fa-file-alt"></i>
+            Get Quote
           </a>
         </nav>
       </header>
 
-      {/* Hero Section */}
-      <section className="hero-business" id="demo-form">
+      {/* Hero */}
+      <section className="cert-hero" id="hero">
         <div className="container">
-          <div className="hero-business-content">
-            <div className="hero-text fade-in" ref={addFadeRef}>
-              <h1>Enterprise Translation Solutions</h1>
-              <p className="subtitle">
-                Scale your global operations with AI-powered translation services trusted by Fortune 500 companies.
-                Reduce costs by 70% while maintaining enterprise-grade quality and security.
+          <div className="cert-hero-content">
+            <div className="cert-hero-text fade-in" ref={addFadeRef}>
+              <div className="cert-badge">
+                <i className="fas fa-shield-alt"></i>
+                USCIS Accepted &bull; ATA Member
+              </div>
+              <h1>Certified Translation Services</h1>
+              <p className="cert-subtitle">
+                Professional certified translations for immigration, legal, academic, and personal documents.
+                Trusted by thousands of clients across the United States.
               </p>
 
-              <div className="hero-stats">
-                <div className="stat-item">
-                  <div className="stat-number">500+</div>
-                  <div className="stat-label">Enterprise Clients</div>
+              <div className="cert-trust-row">
+                <div className="trust-item">
+                  <i className="fas fa-check-circle"></i>
+                  <span>100% USCIS Acceptance</span>
                 </div>
-                <div className="stat-item">
-                  <div className="stat-number">70%</div>
-                  <div className="stat-label">Cost Reduction</div>
+                <div className="trust-item">
+                  <i className="fas fa-clock"></i>
+                  <span>24h Turnaround Available</span>
                 </div>
-                <div className="stat-item">
-                  <div className="stat-number">24h</div>
-                  <div className="stat-label">Turnaround Time</div>
+                <div className="trust-item">
+                  <i className="fas fa-users"></i>
+                  <span>100% Human Translators</span>
                 </div>
               </div>
 
-              <div className="cta-buttons">
-                <a href="#demo-form" className="btn-white" onClick={(e) => scrollToSection(e, 'demo-form')}>
-                  <i className="fas fa-rocket"></i>
-                  Start Free Trial
+              <div className="cert-hero-stats">
+                <div className="cert-stat">
+                  <div className="cert-stat-number">10,000+</div>
+                  <div className="cert-stat-label">Documents Translated</div>
+                </div>
+                <div className="cert-stat">
+                  <div className="cert-stat-number">50+</div>
+                  <div className="cert-stat-label">Languages</div>
+                </div>
+                <div className="cert-stat">
+                  <div className="cert-stat-number">4.9/5</div>
+                  <div className="cert-stat-label">Client Rating</div>
+                </div>
+              </div>
+
+              <div className="cert-hero-actions">
+                <a href="#order" className="btn-cert-primary" onClick={(e) => scrollTo(e, 'order')}>
+                  <i className="fas fa-paper-plane"></i>
+                  Get Free Quote
                 </a>
-                <a href="#plans" className="btn-outline" onClick={(e) => scrollToSection(e, 'plans')}>
-                  <i className="fas fa-chart-line"></i>
-                  View Pricing
+                <a href="#how-it-works" className="btn-cert-outline" onClick={(e) => scrollTo(e, 'how-it-works')}>
+                  <i className="fas fa-play-circle"></i>
+                  How It Works
                 </a>
               </div>
             </div>
 
-            <div className="hero-form fade-in" ref={addFadeRef}>
-              <h3 className="form-title">Get Started Today</h3>
-              <form onSubmit={handleFormSubmit}>
-                <div className="form-group">
-                  <label htmlFor="company-name">Company Name *</label>
-                  <input type="text" id="company-name" name="company-name" placeholder="Your Company" required />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="contact-name">Full Name *</label>
-                  <input type="text" id="contact-name" name="contact-name" placeholder="John Smith" required />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="work-email">Work Email *</label>
-                  <input type="email" id="work-email" name="work-email" placeholder="john@company.com" required />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="company-size">Company Size *</label>
-                  <select id="company-size" name="company-size" required defaultValue="">
-                    <option value="" disabled>Select company size</option>
-                    <option value="1-50">1-50 employees</option>
-                    <option value="51-200">51-200 employees</option>
-                    <option value="201-1000">201-1,000 employees</option>
-                    <option value="1000+">1,000+ employees</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="monthly-volume">Monthly Translation Volume</label>
-                  <select id="monthly-volume" name="monthly-volume" defaultValue="">
-                    <option value="">Select volume</option>
-                    <option value="under-10k">Under 10k words</option>
-                    <option value="10k-50k">10k-50k words</option>
-                    <option value="50k-200k">50k-200k words</option>
-                    <option value="200k+">200k+ words</option>
-                  </select>
-                </div>
-                <button
-                  type="submit"
-                  className={`submit-enterprise-btn ${formLoading ? 'loading' : ''}`}
-                  disabled={formLoading}
-                  style={formSuccess ? { background: 'linear-gradient(135deg, #10b981, #059669)' } : undefined}
-                >
-                  {formLoading ? (
-                    <><i className="fas fa-spinner fa-spin"></i> Processing...</>
-                  ) : formSuccess ? (
-                    <><i className="fas fa-check"></i> Quote Sent!</>
-                  ) : (
-                    <><i className="fas fa-paper-plane"></i> Get Custom Quote</>
-                  )}
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Enterprise Benefits */}
-      <section id="solutions" className="enterprise-benefits">
-        <div className="container">
-          <h2 className="section-title fade-in" ref={addFadeRef}>Why Fortune 500 Companies Choose TRADUX</h2>
-          <p className="section-subtitle fade-in" ref={addFadeRef}>Enterprise-grade translation solutions that scale with your business</p>
-
-          <div className="benefits-grid">
-            {[
-              { icon: 'fa-shield-alt', title: 'Enterprise Security', desc: 'SOC 2 Type II compliant with bank-level encryption, SSO integration, and comprehensive audit trails for maximum data protection.' },
-              { icon: 'fa-cogs', title: 'API Integration', desc: 'Seamlessly integrate with your existing workflow through our RESTful API, webhooks, and pre-built connectors for popular platforms.' },
-              { icon: 'fa-users', title: 'Dedicated Support', desc: '24/7 dedicated customer success manager, priority support queue, and custom SLA agreements for mission-critical projects.' },
-              { icon: 'fa-chart-line', title: 'Analytics Dashboard', desc: 'Real-time insights into translation quality, turnaround times, cost savings, and team productivity with exportable reports.' },
-              { icon: 'fa-robot', title: 'AI Assistant', desc: 'Conversational AI assistant that understands your business context, learns from your brand voice, and automates translation workflows.' },
-              { icon: 'fa-globe', title: '50+ Languages', desc: 'Support for 50+ language pairs with specialized translators for technical, legal, marketing, and medical content.' },
-              { icon: 'fa-memory', title: 'Translation Memory', desc: "Build and maintain your company's translation memory for consistent terminology and significant cost savings on repeat content." },
-              { icon: 'fa-bolt', title: 'Instant Processing', desc: '7.6x faster processing than competitors with GPU-accelerated architecture for real-time translation and content generation.' },
-              { icon: 'fa-brain', title: 'Smart Learning', desc: 'AI learns your brand voice, writing style, and terminology preferences to maintain consistency across all translations.' },
-            ].map((benefit, i) => (
-              <div key={i} className="benefit-card fade-in" ref={addFadeRef}>
-                <div className="benefit-icon">
-                  <i className={`fas ${benefit.icon}`}></i>
-                </div>
-                <h3>{benefit.title}</h3>
-                <p>{benefit.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* AI Features Section */}
-      <section className="ai-features">
-        <div className="container">
-          <h2 className="section-title fade-in" ref={addFadeRef}>Powered by Advanced AI Technology</h2>
-          <p className="section-subtitle fade-in" ref={addFadeRef}>Experience the future of enterprise translation with our cutting-edge AI capabilities</p>
-
-          <div className="ai-features-grid">
-            {[
-              {
-                icon: 'fa-comments',
-                title: 'Conversational AI Assistant',
-                desc: 'Chat with your AI translator using natural language. Simply describe what you need, and our AI handles complex translation workflows automatically.',
-                features: ['Natural language commands', 'Context-aware responses', 'Workflow automation', '24/7 availability'],
-              },
-              {
-                icon: 'fa-magic',
-                title: 'Content Generation',
-                desc: 'Generate multilingual content, marketing copy, and product descriptions that match your brand voice across all languages.',
-                features: ['Brand voice consistency', 'SEO-optimized content', 'Multi-format support', 'Instant generation'],
-              },
-              {
-                icon: 'fa-search',
-                title: 'Intelligent Analysis',
-                desc: 'AI analyzes your content patterns, identifies optimization opportunities, and provides actionable insights for better global reach.',
-                features: ['Content pattern analysis', 'Performance insights', 'ROI optimization', 'Predictive analytics'],
-              },
-            ].map((feature, i) => (
-              <div key={i} className="ai-feature-card fade-in" ref={addFadeRef}>
-                <div className="ai-feature-icon">
-                  <i className={`fas ${feature.icon}`}></i>
-                </div>
-                <h3>{feature.title}</h3>
-                <p>{feature.desc}</p>
-                <ul className="feature-list">
-                  {feature.features.map((f, j) => (
-                    <li key={j}>{f}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ROI Calculator */}
-      <section className="roi-calculator">
-        <div className="container">
-          <h2 className="section-title fade-in" ref={addFadeRef}>Calculate Your Translation ROI</h2>
-          <p className="section-subtitle fade-in" ref={addFadeRef}>See how much time and money TRADUX can save your business</p>
-
-          <div className="calculator-container fade-in" ref={addFadeRef}>
-            <div className="calculator-form">
-              <div className="calculator-input">
-                <label htmlFor="current-cost">Current Monthly Translation Cost ($)</label>
-                <input
-                  type="number"
-                  id="current-cost"
-                  placeholder="5000"
-                  value={currentCost}
-                  onChange={(e) => setCurrentCost(parseFloat(e.target.value) || 0)}
-                />
-              </div>
-              <div className="calculator-input">
-                <label htmlFor="monthly-words">Monthly Word Volume</label>
-                <select id="monthly-words" value={monthlyWords} onChange={(e) => setMonthlyWords(parseInt(e.target.value))}>
-                  <option value={50000}>50k words</option>
-                  <option value={100000}>100k words</option>
-                  <option value={200000}>200k words</option>
-                  <option value={500000}>500k+ words</option>
-                </select>
-              </div>
-              <div className="calculator-input">
-                <label htmlFor="team-size">Team Size</label>
-                <select id="team-size" value={teamSize} onChange={(e) => setTeamSize(parseInt(e.target.value))}>
-                  <option value={5}>1-5 people</option>
-                  <option value={20}>6-20 people</option>
-                  <option value={50}>21-50 people</option>
-                  <option value={100}>50+ people</option>
-                </select>
-              </div>
-              <div className="calculator-input">
-                <label htmlFor="languages">Number of Languages</label>
-                <select id="languages" value={languages} onChange={(e) => setLanguages(parseInt(e.target.value))}>
-                  <option value={5}>1-5 languages</option>
-                  <option value={15}>6-15 languages</option>
-                  <option value={25}>16-25 languages</option>
-                  <option value={50}>25+ languages</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="calculator-results">
-              <h3>Your Potential Savings with TRADUX</h3>
-              <div className="roi-metric">
-                <span className="roi-number">${monthlySavings.toLocaleString()}</span>
-                <span className="roi-label">Monthly Savings</span>
-              </div>
-              <div className="roi-metric">
-                <span className="roi-number">${annualSavings.toLocaleString()}</span>
-                <span className="roi-label">Annual Savings</span>
-              </div>
-              <div className="roi-metric">
-                <span className="roi-number">{timeSaved}</span>
-                <span className="roi-label">Hours Saved/Month</span>
-              </div>
-              <div className="roi-metric">
-                <span className="roi-number">{roiPercentage}%</span>
-                <span className="roi-label">Cost Reduction</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Free Trial Section */}
-      <section className="free-trial">
-        <div className="container">
-          <div className="trial-content fade-in" ref={addFadeRef}>
-            <h2>Start Your Free Enterprise Trial</h2>
-            <p>Experience the power of TRADUX with a full-featured 14-day trial. No credit card required, no setup fees.</p>
-
-            <div className="trial-features">
-              {[
-                { icon: 'fa-rocket', title: 'Instant Setup', desc: 'Get started in under 5 minutes' },
-                { icon: 'fa-shield-alt', title: 'Full Security', desc: 'Enterprise-grade protection' },
-                { icon: 'fa-headset', title: 'Priority Support', desc: 'Dedicated success manager' },
-                { icon: 'fa-infinity', title: 'Unlimited Access', desc: 'All features included' },
-              ].map((item, i) => (
-                <div key={i} className="trial-feature">
-                  <div className="trial-feature-icon">
-                    <i className={`fas ${item.icon}`}></i>
+            <div className="cert-hero-card fade-in" ref={addFadeRef}>
+              <div className="quick-quote-card">
+                <h3><i className="fas fa-calculator"></i> Instant Quote</h3>
+                <div className="quote-form">
+                  <div className="quote-field">
+                    <label>Document Type</label>
+                    <select value={docType} onChange={(e) => setDocType(e.target.value)}>
+                      <option value="birth-certificate">Birth Certificate</option>
+                      <option value="marriage-certificate">Marriage Certificate</option>
+                      <option value="divorce-decree">Divorce Decree</option>
+                      <option value="diploma">Diploma / Degree</option>
+                      <option value="transcript">Academic Transcript</option>
+                      <option value="drivers-license">Driver's License</option>
+                      <option value="passport">Passport</option>
+                      <option value="bank-statement">Bank Statement</option>
+                      <option value="medical-record">Medical Record</option>
+                      <option value="legal-document">Legal Document</option>
+                      <option value="other">Other</option>
+                    </select>
                   </div>
-                  <h4>{item.title}</h4>
-                  <p>{item.desc}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="cta-buttons">
-              <a href="#demo-form" className="btn-white" onClick={(e) => scrollToSection(e, 'demo-form')}>
-                <i className="fas fa-play"></i>
-                Start Free Trial
-              </a>
-              <a href="#contact" className="btn-outline" onClick={(e) => scrollToSection(e, 'contact')}>
-                <i className="fas fa-calendar"></i>
-                Book Demo Call
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Enterprise Plans */}
-      <section id="plans" className="enterprise-plans">
-        <div className="container">
-          <h2 className="section-title fade-in" ref={addFadeRef}>Enterprise Plans</h2>
-          <p className="section-subtitle fade-in" ref={addFadeRef}>Flexible solutions designed to meet your organization's unique needs</p>
-
-          <div className="plans-grid">
-            <div className="plan-card fade-in" ref={addFadeRef}>
-              <h3 className="plan-name">Business</h3>
-              <div className="plan-price">$299</div>
-              <div className="plan-billing">per month</div>
-              <ul className="plan-features">
-                <li>Up to 50,000 words/month</li>
-                <li>5 team members</li>
-                <li>API access</li>
-                <li>Basic analytics</li>
-                <li>Email support</li>
-                <li>Translation memory</li>
-              </ul>
-              <button className="plan-cta" onClick={() => handlePlanClick('Business')}>Start Business Plan</button>
-            </div>
-
-            <div className="plan-card featured fade-in" ref={addFadeRef}>
-              <h3 className="plan-name">Enterprise</h3>
-              <div className="plan-price">$999</div>
-              <div className="plan-billing">per month</div>
-              <ul className="plan-features">
-                <li>Up to 200,000 words/month</li>
-                <li>Unlimited team members</li>
-                <li>Advanced API & webhooks</li>
-                <li>Advanced analytics</li>
-                <li>Priority support</li>
-                <li>Custom integrations</li>
-                <li>SSO & SAML</li>
-                <li>Dedicated success manager</li>
-              </ul>
-              <button className="plan-cta" onClick={() => handlePlanClick('Enterprise')}>Start Enterprise Plan</button>
-            </div>
-
-            <div className="plan-card fade-in" ref={addFadeRef}>
-              <h3 className="plan-name">Custom</h3>
-              <div className="plan-price">Custom</div>
-              <div className="plan-billing">pricing</div>
-              <ul className="plan-features">
-                <li>Unlimited words</li>
-                <li>White-label solution</li>
-                <li>On-premise deployment</li>
-                <li>Custom SLA</li>
-                <li>24/7 phone support</li>
-                <li>Custom training</li>
-                <li>Compliance certifications</li>
-                <li>Dedicated infrastructure</li>
-              </ul>
-              <button className="plan-cta" onClick={() => handlePlanClick('Custom')}>Contact Sales</button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Case Studies */}
-      <section id="case-studies" className="case-studies">
-        <div className="container">
-          <h2 className="section-title fade-in" ref={addFadeRef}>Enterprise Success Stories</h2>
-          <p className="section-subtitle fade-in" ref={addFadeRef}>See how leading companies transformed their global operations</p>
-
-          <div className="case-grid">
-            <div className="case-card fade-in" ref={addFadeRef}>
-              <div className="case-logo">TechCorp</div>
-              <h3>Global Software Company</h3>
-              <p>"TRADUX helped us localize our software into 25 languages while reducing translation costs by 65%. The API integration was seamless and their quality is consistently excellent."</p>
-              <div className="case-results">
-                <div className="result-item">
-                  <div className="result-number">65%</div>
-                  <div className="result-label">Cost Reduction</div>
-                </div>
-                <div className="result-item">
-                  <div className="result-number">25</div>
-                  <div className="result-label">Languages</div>
-                </div>
-                <div className="result-item">
-                  <div className="result-number">50%</div>
-                  <div className="result-label">Faster TTM</div>
-                </div>
-                <div className="result-item">
-                  <div className="result-number">99.5%</div>
-                  <div className="result-label">Quality Score</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="case-card fade-in" ref={addFadeRef}>
-              <div className="case-logo">MedDev</div>
-              <h3>Medical Device Manufacturer</h3>
-              <p>"For regulatory compliance, we needed perfect translations of medical documentation. TRADUX's specialized medical translators and quality assurance exceeded our expectations."</p>
-              <div className="case-results">
-                <div className="result-item">
-                  <div className="result-number">100%</div>
-                  <div className="result-label">Regulatory Approval</div>
-                </div>
-                <div className="result-item">
-                  <div className="result-number">15</div>
-                  <div className="result-label">Countries</div>
-                </div>
-                <div className="result-item">
-                  <div className="result-number">30%</div>
-                  <div className="result-label">Time Savings</div>
-                </div>
-                <div className="result-item">
-                  <div className="result-number">Zero</div>
-                  <div className="result-label">Compliance Issues</div>
+                  <div className="quote-row">
+                    <div className="quote-field">
+                      <label>From</label>
+                      <select value={sourceLang} onChange={(e) => setSourceLang(e.target.value)}>
+                        <option value="portuguese">Portuguese</option>
+                        <option value="spanish">Spanish</option>
+                        <option value="french">French</option>
+                        <option value="german">German</option>
+                        <option value="italian">Italian</option>
+                        <option value="chinese">Chinese</option>
+                        <option value="japanese">Japanese</option>
+                        <option value="korean">Korean</option>
+                        <option value="arabic">Arabic</option>
+                        <option value="russian">Russian</option>
+                        <option value="english">English</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div className="quote-field">
+                      <label>To</label>
+                      <select value={targetLang} onChange={(e) => setTargetLang(e.target.value)}>
+                        <option value="english">English</option>
+                        <option value="portuguese">Portuguese</option>
+                        <option value="spanish">Spanish</option>
+                        <option value="french">French</option>
+                        <option value="german">German</option>
+                        <option value="italian">Italian</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="quote-row">
+                    <div className="quote-field">
+                      <label>Pages</label>
+                      <input type="number" min={1} max={100} value={numPages} onChange={(e) => setNumPages(Math.max(1, parseInt(e.target.value) || 1))} />
+                    </div>
+                    <div className="quote-field">
+                      <label>Delivery</label>
+                      <select value={urgency} onChange={(e) => setUrgency(e.target.value)}>
+                        <option value="standard">Standard (2-3 days)</option>
+                        <option value="express">Express (24h) +25%</option>
+                        <option value="rush">Rush (Same day) +50%</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="quote-result">
+                    <div className="quote-price">
+                      <span className="price-label">Estimated Price</span>
+                      <span className="price-amount">${estimatedPrice}</span>
+                      <span className="price-note">Starting from $24.95/page</span>
+                    </div>
+                    <a href="#order" className="btn-cert-primary btn-sm" onClick={(e) => scrollTo(e, 'order')}>
+                      Order Now <i className="fas fa-arrow-right"></i>
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
@@ -515,20 +256,411 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="cta-section">
+      {/* Services */}
+      <section id="services" className="cert-services">
         <div className="container">
-          <div className="cta-content">
-            <h2>Ready to Scale Your Global Operations?</h2>
-            <p>Join 500+ enterprise customers who trust TRADUX for their mission-critical translations. Start your free trial today.</p>
-            <div className="cta-buttons">
-              <a href="#demo-form" className="btn-white" onClick={(e) => scrollToSection(e, 'demo-form')}>
-                <i className="fas fa-calendar"></i>
-                Book Demo
+          <h2 className="cert-section-title fade-in" ref={addFadeRef}>Our Translation Services</h2>
+          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>Professional human translations certified for official use</p>
+
+          <div className="services-grid">
+            {[
+              { icon: 'fa-stamp', title: 'Certified Translations', desc: 'Translations with a signed Certificate of Accuracy, accepted by USCIS, courts, universities, and government agencies across the US.', color: '#ff6b35' },
+              { icon: 'fa-gavel', title: 'Legal Translations', desc: 'Contracts, court documents, power of attorney, and legal correspondence translated with precision by specialized legal translators.', color: '#667eea' },
+              { icon: 'fa-graduation-cap', title: 'Academic Translations', desc: 'Diplomas, transcripts, academic records, and educational certificates for university admissions and credential evaluation.', color: '#11998e' },
+              { icon: 'fa-passport', title: 'Immigration Documents', desc: 'Birth certificates, marriage certificates, divorce decrees, and all documents required for USCIS applications and visa processing.', color: '#f59e0b' },
+              { icon: 'fa-file-medical', title: 'Medical Translations', desc: 'Medical records, prescriptions, lab results, and healthcare documentation translated by medical translation specialists.', color: '#ef4444' },
+              { icon: 'fa-briefcase', title: 'Business Translations', desc: 'Financial statements, business licenses, articles of incorporation, and corporate documents for international operations.', color: '#8b5cf6' },
+            ].map((service, i) => (
+              <div key={i} className="service-card fade-in" ref={addFadeRef}>
+                <div className="service-icon" style={{ background: service.color }}>
+                  <i className={`fas ${service.icon}`}></i>
+                </div>
+                <h3>{service.title}</h3>
+                <p>{service.desc}</p>
+                <a href="#order" className="service-link" onClick={(e) => scrollTo(e, 'order')}>
+                  Get Quote <i className="fas fa-arrow-right"></i>
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section id="how-it-works" className="cert-how">
+        <div className="container">
+          <h2 className="cert-section-title fade-in" ref={addFadeRef}>How It Works</h2>
+          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>Get your certified translation in 3 simple steps</p>
+
+          <div className="steps-grid">
+            {[
+              { step: '1', icon: 'fa-cloud-upload-alt', title: 'Upload Your Document', desc: 'Upload a clear scan or photo of your document. We accept PDF, JPG, PNG, and Word formats. Your files are encrypted and secure.' },
+              { step: '2', icon: 'fa-language', title: 'Professional Translation', desc: 'Our certified human translators work on your document, ensuring accuracy and compliance with USCIS and official requirements.' },
+              { step: '3', icon: 'fa-file-download', title: 'Receive Certified Translation', desc: 'Get your certified translation delivered digitally. Includes a signed Certificate of Accuracy. Physical copies available upon request.' },
+            ].map((item, i) => (
+              <div key={i} className="step-card fade-in" ref={addFadeRef}>
+                <div className="step-number">{item.step}</div>
+                <div className="step-icon">
+                  <i className={`fas ${item.icon}`}></i>
+                </div>
+                <h3>{item.title}</h3>
+                <p>{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Accepted Documents */}
+      <section id="documents" className="cert-documents">
+        <div className="container">
+          <h2 className="cert-section-title fade-in" ref={addFadeRef}>Accepted Document Types</h2>
+          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>We translate all types of personal, legal, and business documents</p>
+
+          <div className="docs-grid fade-in" ref={addFadeRef}>
+            {[
+              { icon: 'fa-baby', label: 'Birth Certificates' },
+              { icon: 'fa-ring', label: 'Marriage Certificates' },
+              { icon: 'fa-heart-broken', label: 'Divorce Decrees' },
+              { icon: 'fa-skull-crossbones', label: 'Death Certificates' },
+              { icon: 'fa-graduation-cap', label: 'Diplomas & Degrees' },
+              { icon: 'fa-file-alt', label: 'Academic Transcripts' },
+              { icon: 'fa-passport', label: 'Passports' },
+              { icon: 'fa-id-card', label: "Driver's Licenses" },
+              { icon: 'fa-file-contract', label: 'Legal Contracts' },
+              { icon: 'fa-gavel', label: 'Court Documents' },
+              { icon: 'fa-file-medical', label: 'Medical Records' },
+              { icon: 'fa-university', label: 'Bank Statements' },
+              { icon: 'fa-building', label: 'Business Licenses' },
+              { icon: 'fa-file-invoice-dollar', label: 'Financial Documents' },
+              { icon: 'fa-vote-yea', label: 'Voter Registration' },
+              { icon: 'fa-file-signature', label: 'Power of Attorney' },
+            ].map((doc, i) => (
+              <div key={i} className="doc-item">
+                <i className={`fas ${doc.icon}`}></i>
+                <span>{doc.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section id="pricing" className="cert-pricing">
+        <div className="container">
+          <h2 className="cert-section-title fade-in" ref={addFadeRef}>Transparent Pricing</h2>
+          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>No hidden fees. Price per page includes certification.</p>
+
+          <div className="pricing-grid">
+            <div className="pricing-card fade-in" ref={addFadeRef}>
+              <h3>Standard</h3>
+              <div className="pricing-amount">$24.95</div>
+              <div className="pricing-per">per page</div>
+              <ul className="pricing-features">
+                <li><i className="fas fa-check"></i> Certified translation</li>
+                <li><i className="fas fa-check"></i> Certificate of Accuracy</li>
+                <li><i className="fas fa-check"></i> USCIS accepted</li>
+                <li><i className="fas fa-check"></i> 2-3 business days</li>
+                <li><i className="fas fa-check"></i> Digital delivery (PDF)</li>
+                <li><i className="fas fa-check"></i> Free revisions</li>
+              </ul>
+              <button className="btn-pricing" onClick={() => { toast.success('Standard plan selected!'); document.getElementById('order')?.scrollIntoView({ behavior: 'smooth' }); }}>
+                Order Now
+              </button>
+            </div>
+
+            <div className="pricing-card featured fade-in" ref={addFadeRef}>
+              <div className="popular-badge">Most Popular</div>
+              <h3>Express</h3>
+              <div className="pricing-amount">$31.19</div>
+              <div className="pricing-per">per page</div>
+              <ul className="pricing-features">
+                <li><i className="fas fa-check"></i> Everything in Standard</li>
+                <li><i className="fas fa-check"></i> 24-hour delivery</li>
+                <li><i className="fas fa-check"></i> Priority processing</li>
+                <li><i className="fas fa-check"></i> Email notifications</li>
+                <li><i className="fas fa-check"></i> Direct translator contact</li>
+                <li><i className="fas fa-check"></i> Free hard copy mailing</li>
+              </ul>
+              <button className="btn-pricing featured" onClick={() => { toast.success('Express plan selected!'); document.getElementById('order')?.scrollIntoView({ behavior: 'smooth' }); }}>
+                Order Now
+              </button>
+            </div>
+
+            <div className="pricing-card fade-in" ref={addFadeRef}>
+              <h3>Rush</h3>
+              <div className="pricing-amount">$37.43</div>
+              <div className="pricing-per">per page</div>
+              <ul className="pricing-features">
+                <li><i className="fas fa-check"></i> Everything in Express</li>
+                <li><i className="fas fa-check"></i> Same-day delivery</li>
+                <li><i className="fas fa-check"></i> Dedicated translator</li>
+                <li><i className="fas fa-check"></i> Phone support</li>
+                <li><i className="fas fa-check"></i> Notarization available</li>
+                <li><i className="fas fa-check"></i> Hard copy via FedEx</li>
+              </ul>
+              <button className="btn-pricing" onClick={() => { toast.success('Rush plan selected!'); document.getElementById('order')?.scrollIntoView({ behavior: 'smooth' }); }}>
+                Order Now
+              </button>
+            </div>
+          </div>
+
+          <div className="pricing-note fade-in" ref={addFadeRef}>
+            <i className="fas fa-info-circle"></i>
+            <p>Need a high-volume or business discount? <a href="#contact" onClick={(e) => scrollTo(e, 'contact')}>Contact us</a> for custom pricing.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* USCIS Section */}
+      <section className="cert-uscis">
+        <div className="container">
+          <div className="uscis-content fade-in" ref={addFadeRef}>
+            <div className="uscis-text">
+              <h2><i className="fas fa-flag-usa"></i> USCIS Certified Translations</h2>
+              <p>
+                All our certified translations comply with USCIS requirements as stated in the
+                Code of Federal Regulations, 8 CFR 103.2(b)(3). Every translation includes a
+                signed Certificate of Accuracy guaranteeing completeness and accuracy.
+              </p>
+              <ul className="uscis-list">
+                <li><i className="fas fa-check-circle"></i> Compliant with 8 CFR 103.2(b)(3)</li>
+                <li><i className="fas fa-check-circle"></i> Signed Certificate of Accuracy included</li>
+                <li><i className="fas fa-check-circle"></i> Accepted by all USCIS offices nationwide</li>
+                <li><i className="fas fa-check-circle"></i> Accepted by courts and government agencies</li>
+                <li><i className="fas fa-check-circle"></i> Notarization available upon request</li>
+              </ul>
+              <a href="#order" className="btn-cert-primary" onClick={(e) => scrollTo(e, 'order')}>
+                <i className="fas fa-file-alt"></i> Start Your Translation
               </a>
-              <a href="#contact" className="btn-outline" onClick={(e) => scrollToSection(e, 'contact')}>
+            </div>
+            <div className="uscis-badge">
+              <div className="big-badge">
+                <i className="fas fa-certificate"></i>
+                <span>100%</span>
+                <small>USCIS Acceptance Guarantee</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Order Form */}
+      <section id="order" className="cert-order">
+        <div className="container">
+          <h2 className="cert-section-title fade-in" ref={addFadeRef}>Place Your Order</h2>
+          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>Upload your documents and receive a quote within minutes</p>
+
+          <div className="order-container fade-in" ref={addFadeRef}>
+            <form onSubmit={handleOrderSubmit} className="order-form">
+              <div className="order-section">
+                <h3><i className="fas fa-user"></i> Your Information</h3>
+                <div className="order-row">
+                  <div className="order-field">
+                    <label htmlFor="full-name">Full Name *</label>
+                    <input type="text" id="full-name" placeholder="John Smith" required />
+                  </div>
+                  <div className="order-field">
+                    <label htmlFor="email">Email *</label>
+                    <input type="email" id="email" placeholder="john@email.com" required />
+                  </div>
+                </div>
+                <div className="order-row">
+                  <div className="order-field">
+                    <label htmlFor="phone">Phone</label>
+                    <input type="tel" id="phone" placeholder="(555) 123-4567" />
+                  </div>
+                  <div className="order-field">
+                    <label htmlFor="order-purpose">Purpose *</label>
+                    <select id="order-purpose" required defaultValue="">
+                      <option value="" disabled>Select purpose</option>
+                      <option value="uscis">USCIS / Immigration</option>
+                      <option value="university">University / Education</option>
+                      <option value="legal">Legal / Court</option>
+                      <option value="personal">Personal Use</option>
+                      <option value="business">Business</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="order-section">
+                <h3><i className="fas fa-language"></i> Translation Details</h3>
+                <div className="order-row">
+                  <div className="order-field">
+                    <label htmlFor="order-source">Source Language *</label>
+                    <select id="order-source" required defaultValue="portuguese">
+                      <option value="portuguese">Portuguese</option>
+                      <option value="spanish">Spanish</option>
+                      <option value="french">French</option>
+                      <option value="german">German</option>
+                      <option value="italian">Italian</option>
+                      <option value="chinese">Chinese</option>
+                      <option value="japanese">Japanese</option>
+                      <option value="korean">Korean</option>
+                      <option value="arabic">Arabic</option>
+                      <option value="russian">Russian</option>
+                      <option value="english">English</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="order-field">
+                    <label htmlFor="order-target">Target Language *</label>
+                    <select id="order-target" required defaultValue="english">
+                      <option value="english">English</option>
+                      <option value="portuguese">Portuguese</option>
+                      <option value="spanish">Spanish</option>
+                      <option value="french">French</option>
+                      <option value="german">German</option>
+                      <option value="italian">Italian</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="order-row">
+                  <div className="order-field">
+                    <label htmlFor="order-doc-type">Document Type *</label>
+                    <select id="order-doc-type" required defaultValue="">
+                      <option value="" disabled>Select document type</option>
+                      <option value="birth-certificate">Birth Certificate</option>
+                      <option value="marriage-certificate">Marriage Certificate</option>
+                      <option value="divorce-decree">Divorce Decree</option>
+                      <option value="death-certificate">Death Certificate</option>
+                      <option value="diploma">Diploma / Degree</option>
+                      <option value="transcript">Academic Transcript</option>
+                      <option value="passport">Passport</option>
+                      <option value="drivers-license">Driver's License</option>
+                      <option value="medical-record">Medical Record</option>
+                      <option value="legal-document">Legal Document</option>
+                      <option value="bank-statement">Bank Statement</option>
+                      <option value="business-document">Business Document</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="order-field">
+                    <label htmlFor="order-delivery">Delivery Speed *</label>
+                    <select id="order-delivery" required defaultValue="standard">
+                      <option value="standard">Standard (2-3 days) - $24.95/pg</option>
+                      <option value="express">Express (24h) - $31.19/pg</option>
+                      <option value="rush">Rush (Same day) - $37.43/pg</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="order-section">
+                <h3><i className="fas fa-upload"></i> Upload Documents</h3>
+                <div className="upload-area">
+                  <input
+                    type="file"
+                    id="file-upload"
+                    multiple
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                    onChange={handleFileChange}
+                    className="file-input"
+                  />
+                  <label htmlFor="file-upload" className="upload-label">
+                    <i className="fas fa-cloud-upload-alt"></i>
+                    <span>Click to upload or drag files here</span>
+                    <small>PDF, JPG, PNG, DOC (Max 20MB each)</small>
+                  </label>
+                  {selectedFiles.length > 0 && (
+                    <div className="file-list">
+                      {selectedFiles.map((file, i) => (
+                        <div key={i} className="file-item">
+                          <i className="fas fa-file"></i>
+                          <span>{file.name}</span>
+                          <small>({(file.size / 1024).toFixed(1)} KB)</small>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="order-section">
+                <h3><i className="fas fa-sticky-note"></i> Additional Notes</h3>
+                <textarea
+                  id="order-notes"
+                  rows={3}
+                  placeholder="Any specific instructions, name spellings, or special requirements..."
+                ></textarea>
+              </div>
+
+              <div className="order-security">
+                <i className="fas fa-lock"></i>
+                <span>Your files are encrypted and secure. Only essential staff with NDAs have access.</span>
+              </div>
+
+              <button
+                type="submit"
+                className={`btn-order-submit ${formLoading ? 'loading' : ''}`}
+                disabled={formLoading}
+                style={formSuccess ? { background: 'linear-gradient(135deg, #10b981, #059669)' } : undefined}
+              >
+                {formLoading ? (
+                  <><i className="fas fa-spinner fa-spin"></i> Submitting...</>
+                ) : formSuccess ? (
+                  <><i className="fas fa-check"></i> Order Received!</>
+                ) : (
+                  <><i className="fas fa-paper-plane"></i> Submit Order &amp; Get Quote</>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="cert-testimonials">
+        <div className="container">
+          <h2 className="cert-section-title fade-in" ref={addFadeRef}>What Our Clients Say</h2>
+          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>Trusted by thousands of clients for certified translations</p>
+
+          <div className="testimonials-grid">
+            {[
+              { name: 'Maria S.', location: 'Boston, MA', rating: 5, text: 'I needed a certified translation of my Brazilian birth certificate for USCIS. The quote came in minutes and the translation was ready the next day. Perfect quality!' },
+              { name: 'Carlos R.', location: 'Miami, FL', rating: 5, text: 'Excellent service for my immigration documents. They translated my marriage certificate and diploma from Portuguese. USCIS accepted everything without issues.' },
+              { name: 'Ana P.', location: 'New York, NY', rating: 5, text: 'Fast, professional, and affordable. I needed rush translations for court documents and they delivered same day. Highly recommend for any legal translations.' },
+              { name: 'Roberto M.', location: 'Los Angeles, CA', rating: 5, text: "The best translation service I've used. They translated my medical records from Spanish with incredible accuracy. The certified translation was accepted by my insurance company." },
+            ].map((review, i) => (
+              <div key={i} className="testimonial-card fade-in" ref={addFadeRef}>
+                <div className="stars">
+                  {[...Array(review.rating)].map((_, j) => (
+                    <i key={j} className="fas fa-star"></i>
+                  ))}
+                </div>
+                <p>"{review.text}"</p>
+                <div className="reviewer">
+                  <div className="reviewer-avatar">
+                    {review.name.charAt(0)}
+                  </div>
+                  <div>
+                    <strong>{review.name}</strong>
+                    <span>{review.location}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="cert-cta-section">
+        <div className="container">
+          <div className="cert-cta-content fade-in" ref={addFadeRef}>
+            <h2>Need a Certified Translation?</h2>
+            <p>Get started today. Upload your document and receive a quote within minutes. 100% USCIS acceptance guaranteed.</p>
+            <div className="cert-cta-buttons">
+              <a href="#order" className="btn-cert-primary" onClick={(e) => scrollTo(e, 'order')}>
+                <i className="fas fa-paper-plane"></i>
+                Get Free Quote
+              </a>
+              <a href="tel:+16893094980" className="btn-cert-outline-dark">
                 <i className="fas fa-phone"></i>
-                Talk to Sales
+                Call (689) 309-4980
               </a>
             </div>
           </div>
@@ -536,39 +668,56 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer id="contact">
+      <footer id="contact" className="cert-footer">
         <div className="container">
-          <div className="footer-content">
-            <div className="footer-section">
-              <h3>TRADUX Business</h3>
-              <p>Enterprise AI-powered translation solutions for global companies.</p>
-              <p><i className="fas fa-envelope"></i> enterprise@tradux.online</p>
+          <div className="footer-grid">
+            <div className="footer-col">
+              <h3>TRADUX</h3>
+              <p>Professional certified translation services for immigration, legal, academic, and personal documents.</p>
+              <p><i className="fas fa-envelope"></i> contact@tradux.online</p>
               <p><i className="fas fa-phone"></i> +1 (689) 309-4980</p>
+              <p><i className="fas fa-map-marker-alt"></i> Boston, MA, United States</p>
             </div>
-            <div className="footer-section">
-              <h3>Solutions</h3>
-              <a href="#solutions" onClick={(e) => scrollToSection(e, 'solutions')}>Enterprise Translation</a>
-              <a href="#plans" onClick={(e) => scrollToSection(e, 'plans')}>API Integration</a>
-              <a href="#case-studies" onClick={(e) => scrollToSection(e, 'case-studies')}>White-label</a>
-              <a href="#contact" onClick={(e) => scrollToSection(e, 'contact')}>Custom Solutions</a>
+            <div className="footer-col">
+              <h3>Services</h3>
+              <a href="#services" onClick={(e) => scrollTo(e, 'services')}>Certified Translations</a>
+              <a href="#services" onClick={(e) => scrollTo(e, 'services')}>Legal Translations</a>
+              <a href="#services" onClick={(e) => scrollTo(e, 'services')}>Academic Translations</a>
+              <a href="#services" onClick={(e) => scrollTo(e, 'services')}>Immigration Documents</a>
+              <a href="#services" onClick={(e) => scrollTo(e, 'services')}>Medical Translations</a>
             </div>
-            <div className="footer-section">
-              <h3>Resources</h3>
-              <a href="#" onClick={(e) => { e.preventDefault(); toast.info('Documentation coming soon!'); }}>Documentation</a>
-              <a href="#" onClick={(e) => { e.preventDefault(); toast.info('API Reference coming soon!'); }}>API Reference</a>
-              <a href="#" onClick={(e) => { e.preventDefault(); toast.info('Best Practices coming soon!'); }}>Best Practices</a>
-              <a href="#roi-calc" onClick={(e) => { e.preventDefault(); document.querySelector('.roi-calculator')?.scrollIntoView({ behavior: 'smooth' }); }}>ROI Calculator</a>
+            <div className="footer-col">
+              <h3>Information</h3>
+              <a href="#how-it-works" onClick={(e) => scrollTo(e, 'how-it-works')}>How It Works</a>
+              <a href="#pricing" onClick={(e) => scrollTo(e, 'pricing')}>Pricing</a>
+              <a href="#documents" onClick={(e) => scrollTo(e, 'documents')}>Accepted Documents</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); toast.info('FAQ page coming soon!'); }}>FAQ</a>
+              <Link href="/professionals">For Translators</Link>
             </div>
-            <div className="footer-section">
-              <h3>Company</h3>
-              <a href="#" onClick={(e) => { e.preventDefault(); toast.info('About Us page coming soon!'); }}>About Us</a>
-              <a href="#" onClick={(e) => { e.preventDefault(); toast.info('Security page coming soon!'); }}>Security</a>
-              <a href="#" onClick={(e) => { e.preventDefault(); toast.info('Compliance page coming soon!'); }}>Compliance</a>
-              <a href="#contact" onClick={(e) => scrollToSection(e, 'contact')}>Contact Sales</a>
+            <div className="footer-col">
+              <h3>Trust & Security</h3>
+              <div className="trust-badges">
+                <div className="trust-badge-item">
+                  <i className="fas fa-shield-alt"></i>
+                  <span>USCIS Compliant</span>
+                </div>
+                <div className="trust-badge-item">
+                  <i className="fas fa-lock"></i>
+                  <span>256-bit Encryption</span>
+                </div>
+                <div className="trust-badge-item">
+                  <i className="fas fa-user-shield"></i>
+                  <span>NDA Protected</span>
+                </div>
+                <div className="trust-badge-item">
+                  <i className="fas fa-certificate"></i>
+                  <span>ATA Member</span>
+                </div>
+              </div>
             </div>
           </div>
           <div className="footer-bottom">
-            <p>&copy; {currentYear} TRADUX Business. All rights reserved. | Enterprise translation solutions.</p>
+            <p>&copy; {currentYear} TRADUX. All rights reserved. | Professional Certified Translation Services.</p>
           </div>
         </div>
       </footer>
