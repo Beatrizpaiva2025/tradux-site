@@ -51,7 +51,7 @@ export default function Home() {
   }, []);
 
   // Quote calculation
-  const basePrice = 24.95;
+  const basePrice = 19.00;
   const urgencyMultiplier = urgency === 'rush' ? 1.5 : urgency === 'express' ? 1.25 : 1;
   const estimatedPrice = (basePrice * numPages * urgencyMultiplier).toFixed(2);
 
@@ -243,7 +243,7 @@ export default function Home() {
                     <div className="quote-price">
                       <span className="price-label">Estimated Price</span>
                       <span className="price-amount">${estimatedPrice}</span>
-                      <span className="price-note">Starting from $24.95/page</span>
+                      <span className="price-note">Starting from $19.00/page</span>
                     </div>
                     <a href="#order" className="btn-cert-primary btn-sm" onClick={(e) => scrollTo(e, 'order')}>
                       Order Now <i className="fas fa-arrow-right"></i>
@@ -354,7 +354,7 @@ export default function Home() {
           <div className="pricing-grid">
             <div className="pricing-card fade-in" ref={addFadeRef}>
               <h3>Standard</h3>
-              <div className="pricing-amount">$24.95</div>
+              <div className="pricing-amount">$19.00</div>
               <div className="pricing-per">per page</div>
               <ul className="pricing-features">
                 <li><i className="fas fa-check"></i> Certified translation</li>
@@ -372,7 +372,7 @@ export default function Home() {
             <div className="pricing-card featured fade-in" ref={addFadeRef}>
               <div className="popular-badge">Most Popular</div>
               <h3>Express</h3>
-              <div className="pricing-amount">$31.19</div>
+              <div className="pricing-amount">$23.75</div>
               <div className="pricing-per">per page</div>
               <ul className="pricing-features">
                 <li><i className="fas fa-check"></i> Everything in Standard</li>
@@ -389,7 +389,7 @@ export default function Home() {
 
             <div className="pricing-card fade-in" ref={addFadeRef}>
               <h3>Rush</h3>
-              <div className="pricing-amount">$37.43</div>
+              <div className="pricing-amount">$28.50</div>
               <div className="pricing-per">per page</div>
               <ul className="pricing-features">
                 <li><i className="fas fa-check"></i> Everything in Express</li>
@@ -541,9 +541,9 @@ export default function Home() {
                   <div className="order-field">
                     <label htmlFor="order-delivery">Delivery Speed *</label>
                     <select id="order-delivery" required defaultValue="standard">
-                      <option value="standard">Standard (2-3 days) - $24.95/pg</option>
-                      <option value="express">Express (24h) - $31.19/pg</option>
-                      <option value="rush">Rush (Same day) - $37.43/pg</option>
+                      <option value="standard">Standard (2-3 days) - $19.00/pg</option>
+                      <option value="express">Express (24h) - $23.75/pg</option>
+                      <option value="rush">Rush (Same day) - $28.50/pg</option>
                     </select>
                   </div>
                 </div>
