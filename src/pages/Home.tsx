@@ -8,31 +8,23 @@ export default function Home() {
   const [formSuccess, setFormSuccess] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
-  // Quote calculator state
-  const [docType, setDocType] = useState('birth-certificate');
-  const [numPages, setNumPages] = useState(1);
-  const [sourceLang, setSourceLang] = useState('portuguese');
-  const [targetLang, setTargetLang] = useState('english');
-  const [urgency, setUrgency] = useState('standard');
+  // Order form state
+  const [serviceTier, setServiceTier] = useState('standard');
+  const [certType, setCertType] = useState('certified');
 
   const fadeRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Header scroll
   useEffect(() => {
     const handleScroll = () => setHeaderScrolled(window.scrollY > 80);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Intersection Observer for animations
   useEffect(() => {
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) entry.target.classList.add('animated');
-        });
-      },
+      (entries) => { entries.forEach((entry) => { if (entry.isIntersecting) entry.target.classList.add('animated'); }); },
       { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
     );
     fadeRefs.current.forEach((el) => { if (el) observer.observe(el); });
@@ -43,45 +35,40 @@ export default function Home() {
     if (el && !fadeRefs.current.includes(el)) fadeRefs.current.push(el);
   };
 
-  // Smooth scroll
-  const scrollTo = useCallback((e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+  const scrollTo = useCallback((e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, id: string) => {
     e.preventDefault();
     setMobileMenuOpen(false);
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
-  // Quote calculation
-  const basePrice = 19.00;
-  const urgencyMultiplier = urgency === 'rush' ? 1.5 : urgency === 'express' ? 1.25 : 1;
-  const estimatedPrice = (basePrice * numPages * urgencyMultiplier).toFixed(2);
-
-  // File upload handler
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setSelectedFiles(Array.from(e.target.files));
-    }
+    if (e.target.files) setSelectedFiles(Array.from(e.target.files));
   };
 
-  // Order form submission
   const handleOrderSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (selectedFiles.length === 0) {
+      toast.error('Please upload at least one document.');
+      return;
+    }
     setFormLoading(true);
-
     setTimeout(() => {
       setFormLoading(false);
       setFormSuccess(true);
-      toast.success('Order Received!', {
-        description: 'We will review your documents and send you a detailed quote within 15 minutes.',
+      toast.success('Order Placed Successfully!', {
+        description: 'Your translator has been assigned. You will receive your translation within the selected timeframe.',
       });
-
       setTimeout(() => {
         setFormSuccess(false);
         setSelectedFiles([]);
         (e.target as HTMLFormElement).reset();
+        setServiceTier('standard');
+        setCertType('certified');
       }, 3000);
-    }, 2000);
+    }, 2500);
   };
 
+  const tierPrices: Record<string, number> = { standard: 19.00, professional: 29.00, specialist: 39.00 };
   const currentYear = new Date().getFullYear();
 
   return (
@@ -101,18 +88,13 @@ export default function Home() {
           <ul className={`nav-links ${mobileMenuOpen ? 'active' : ''}`}>
             <li><a href="#services" onClick={(e) => scrollTo(e, 'services')}>Services</a></li>
             <li><a href="#how-it-works" onClick={(e) => scrollTo(e, 'how-it-works')}>How It Works</a></li>
-            <li><a href="#pricing" onClick={(e) => scrollTo(e, 'pricing')}>Pricing</a></li>
             <li><a href="#documents" onClick={(e) => scrollTo(e, 'documents')}>Documents</a></li>
-            <li><a href="#contact" onClick={(e) => scrollTo(e, 'contact')}>Contact</a></li>
-            <li>
-              <Link href="/professionals" className="nav-pro-link">
-                For Translators
-              </Link>
-            </li>
+            <li><a href="#pricing" onClick={(e) => scrollTo(e, 'pricing')}>Pricing</a></li>
+            <li><a href="#faq" onClick={(e) => scrollTo(e, 'faq')}>FAQ</a></li>
+            <li><Link href="/professionals" className="nav-pro-link">For Translators</Link></li>
           </ul>
           <a href="#order" className="cta-btn cert-cta" onClick={(e) => scrollTo(e, 'order')}>
-            <i className="fas fa-file-alt"></i>
-            Get Quote
+            <i className="fas fa-shopping-cart"></i> Order Now
           </a>
         </nav>
       </header>
@@ -123,133 +105,69 @@ export default function Home() {
           <div className="cert-hero-content">
             <div className="cert-hero-text fade-in" ref={addFadeRef}>
               <div className="cert-badge">
-                <i className="fas fa-shield-alt"></i>
-                USCIS Accepted &bull; ATA Member
+                <i className="fas fa-award"></i>
+                ATA Member &bull; USCIS Accepted &bull; 100% Acceptance Guarantee
               </div>
-              <h1>Certified Translation Services</h1>
+              <h1>Certified & Official Translation Services</h1>
               <p className="cert-subtitle">
-                Professional certified translations for immigration, legal, academic, and personal documents.
-                Trusted by thousands of clients across the United States.
+                Professional, certified, notarized, and apostille translations for immigration, legal, academic, and business use. Trusted by 10,000+ customers across 100+ countries.
               </p>
 
               <div className="cert-trust-row">
-                <div className="trust-item">
-                  <i className="fas fa-check-circle"></i>
-                  <span>100% USCIS Acceptance</span>
-                </div>
-                <div className="trust-item">
-                  <i className="fas fa-clock"></i>
-                  <span>24h Turnaround Available</span>
-                </div>
-                <div className="trust-item">
-                  <i className="fas fa-users"></i>
-                  <span>100% Human Translators</span>
-                </div>
+                <div className="trust-item"><i className="fas fa-shield-alt"></i><span>100% Acceptance Guarantee</span></div>
+                <div className="trust-item"><i className="fas fa-bolt"></i><span>Same-Day Delivery Available</span></div>
+                <div className="trust-item"><i className="fas fa-users"></i><span>100% Human Translators</span></div>
+                <div className="trust-item"><i className="fas fa-lock"></i><span>NDA Protected</span></div>
               </div>
 
               <div className="cert-hero-stats">
-                <div className="cert-stat">
-                  <div className="cert-stat-number">10,000+</div>
-                  <div className="cert-stat-label">Documents Translated</div>
-                </div>
-                <div className="cert-stat">
-                  <div className="cert-stat-number">50+</div>
-                  <div className="cert-stat-label">Languages</div>
-                </div>
-                <div className="cert-stat">
-                  <div className="cert-stat-number">4.9/5</div>
-                  <div className="cert-stat-label">Client Rating</div>
-                </div>
+                <div className="cert-stat"><div className="cert-stat-number">10,000+</div><div className="cert-stat-label">Customers Served</div></div>
+                <div className="cert-stat"><div className="cert-stat-number">50+</div><div className="cert-stat-label">Languages</div></div>
+                <div className="cert-stat"><div className="cert-stat-number">100+</div><div className="cert-stat-label">Countries</div></div>
+                <div className="cert-stat"><div className="cert-stat-number">4.9/5</div><div className="cert-stat-label">Client Rating</div></div>
               </div>
 
               <div className="cert-hero-actions">
                 <a href="#order" className="btn-cert-primary" onClick={(e) => scrollTo(e, 'order')}>
-                  <i className="fas fa-paper-plane"></i>
-                  Get Free Quote
+                  <i className="fas fa-shopping-cart"></i> Order Your Translation
                 </a>
                 <a href="#how-it-works" className="btn-cert-outline" onClick={(e) => scrollTo(e, 'how-it-works')}>
-                  <i className="fas fa-play-circle"></i>
-                  How It Works
+                  <i className="fas fa-play-circle"></i> How It Works
                 </a>
               </div>
             </div>
 
+            {/* Accepted By Card */}
             <div className="cert-hero-card fade-in" ref={addFadeRef}>
               <div className="quick-quote-card">
-                <h3><i className="fas fa-calculator"></i> Instant Quote</h3>
-                <div className="quote-form">
-                  <div className="quote-field">
-                    <label>Document Type</label>
-                    <select value={docType} onChange={(e) => setDocType(e.target.value)}>
-                      <option value="birth-certificate">Birth Certificate</option>
-                      <option value="marriage-certificate">Marriage Certificate</option>
-                      <option value="divorce-decree">Divorce Decree</option>
-                      <option value="diploma">Diploma / Degree</option>
-                      <option value="transcript">Academic Transcript</option>
-                      <option value="drivers-license">Driver's License</option>
-                      <option value="passport">Passport</option>
-                      <option value="bank-statement">Bank Statement</option>
-                      <option value="medical-record">Medical Record</option>
-                      <option value="legal-document">Legal Document</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div className="quote-row">
-                    <div className="quote-field">
-                      <label>From</label>
-                      <select value={sourceLang} onChange={(e) => setSourceLang(e.target.value)}>
-                        <option value="portuguese">Portuguese</option>
-                        <option value="spanish">Spanish</option>
-                        <option value="french">French</option>
-                        <option value="german">German</option>
-                        <option value="italian">Italian</option>
-                        <option value="chinese">Chinese</option>
-                        <option value="japanese">Japanese</option>
-                        <option value="korean">Korean</option>
-                        <option value="arabic">Arabic</option>
-                        <option value="russian">Russian</option>
-                        <option value="english">English</option>
-                        <option value="other">Other</option>
-                      </select>
+                <h3><i className="fas fa-check-double"></i> Accepted By</h3>
+                <div className="accepted-grid">
+                  {[
+                    { icon: 'fa-flag-usa', label: 'USCIS' },
+                    { icon: 'fa-gavel', label: 'US Courts' },
+                    { icon: 'fa-university', label: 'Universities' },
+                    { icon: 'fa-landmark', label: 'Government' },
+                    { icon: 'fa-building', label: 'Banks' },
+                    { icon: 'fa-globe-americas', label: 'Embassies' },
+                    { icon: 'fa-hospital', label: 'Hospitals' },
+                    { icon: 'fa-briefcase', label: 'Employers' },
+                  ].map((item, i) => (
+                    <div key={i} className="accepted-item">
+                      <i className={`fas ${item.icon}`}></i>
+                      <span>{item.label}</span>
                     </div>
-                    <div className="quote-field">
-                      <label>To</label>
-                      <select value={targetLang} onChange={(e) => setTargetLang(e.target.value)}>
-                        <option value="english">English</option>
-                        <option value="portuguese">Portuguese</option>
-                        <option value="spanish">Spanish</option>
-                        <option value="french">French</option>
-                        <option value="german">German</option>
-                        <option value="italian">Italian</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="quote-row">
-                    <div className="quote-field">
-                      <label>Pages</label>
-                      <input type="number" min={1} max={100} value={numPages} onChange={(e) => setNumPages(Math.max(1, parseInt(e.target.value) || 1))} />
-                    </div>
-                    <div className="quote-field">
-                      <label>Delivery</label>
-                      <select value={urgency} onChange={(e) => setUrgency(e.target.value)}>
-                        <option value="standard">Standard (2-3 days)</option>
-                        <option value="express">Express (24h) +25%</option>
-                        <option value="rush">Rush (Same day) +50%</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="quote-result">
-                    <div className="quote-price">
-                      <span className="price-label">Estimated Price</span>
-                      <span className="price-amount">${estimatedPrice}</span>
-                      <span className="price-note">Starting from $19.00/page</span>
-                    </div>
-                    <a href="#order" className="btn-cert-primary btn-sm" onClick={(e) => scrollTo(e, 'order')}>
-                      Order Now <i className="fas fa-arrow-right"></i>
-                    </a>
+                  ))}
+                </div>
+                <div className="accepted-guarantee">
+                  <i className="fas fa-certificate"></i>
+                  <div>
+                    <strong>100% Acceptance Guarantee</strong>
+                    <small>If your translation is not accepted, we refund you in full.</small>
                   </div>
                 </div>
+                <a href="#order" className="btn-cert-primary btn-sm" onClick={(e) => scrollTo(e, 'order')}>
+                  Order Now &mdash; From $19.00/page <i className="fas fa-arrow-right"></i>
+                </a>
               </div>
             </div>
           </div>
@@ -259,17 +177,17 @@ export default function Home() {
       {/* Services */}
       <section id="services" className="cert-services">
         <div className="container">
-          <h2 className="cert-section-title fade-in" ref={addFadeRef}>Our Translation Services</h2>
-          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>Professional human translations certified for official use</p>
+          <h2 className="cert-section-title fade-in" ref={addFadeRef}>Translation & Certification Services</h2>
+          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>Whatever you need, we have the right solution for you</p>
 
           <div className="services-grid">
             {[
-              { icon: 'fa-stamp', title: 'Certified Translations', desc: 'Translations with a signed Certificate of Accuracy, accepted by USCIS, courts, universities, and government agencies across the US.', color: '#ff6b35' },
-              { icon: 'fa-gavel', title: 'Legal Translations', desc: 'Contracts, court documents, power of attorney, and legal correspondence translated with precision by specialized legal translators.', color: '#667eea' },
-              { icon: 'fa-graduation-cap', title: 'Academic Translations', desc: 'Diplomas, transcripts, academic records, and educational certificates for university admissions and credential evaluation.', color: '#11998e' },
-              { icon: 'fa-passport', title: 'Immigration Documents', desc: 'Birth certificates, marriage certificates, divorce decrees, and all documents required for USCIS applications and visa processing.', color: '#f59e0b' },
-              { icon: 'fa-file-medical', title: 'Medical Translations', desc: 'Medical records, prescriptions, lab results, and healthcare documentation translated by medical translation specialists.', color: '#ef4444' },
-              { icon: 'fa-briefcase', title: 'Business Translations', desc: 'Financial statements, business licenses, articles of incorporation, and corporate documents for international operations.', color: '#8b5cf6' },
+              { icon: 'fa-stamp', title: 'Certified Translations', desc: 'Completed on our letterhead with a signed Certificate of Accuracy, stamp, and contact details. Accepted by USCIS, courts, universities, and government agencies.', color: '#ff6b35' },
+              { icon: 'fa-gavel', title: 'Notarized Translations', desc: 'Certified translation presented to a Notary Public who appends their signature and stamp. Required by some courts, embassies, and foreign institutions.', color: '#667eea' },
+              { icon: 'fa-stamp', title: 'Apostille Services', desc: 'Legalized translations with an Apostille from the Secretary of State, making them admissible in any Hague Convention country.', color: '#8b5cf6' },
+              { icon: 'fa-graduation-cap', title: 'Academic Translations', desc: 'Diplomas, transcripts, and academic records translated for university admissions, credential evaluation (WES, ECE), and professional licensing.', color: '#11998e' },
+              { icon: 'fa-passport', title: 'Immigration Documents', desc: 'Birth certificates, marriage certificates, divorce decrees, police clearances, and all USCIS-required documents with guaranteed acceptance.', color: '#f59e0b' },
+              { icon: 'fa-briefcase', title: 'Business Translations', desc: 'Contracts, financial statements, articles of incorporation, patents, and corporate documents for international operations.', color: '#ef4444' },
             ].map((service, i) => (
               <div key={i} className="service-card fade-in" ref={addFadeRef}>
                 <div className="service-icon" style={{ background: service.color }}>
@@ -278,7 +196,7 @@ export default function Home() {
                 <h3>{service.title}</h3>
                 <p>{service.desc}</p>
                 <a href="#order" className="service-link" onClick={(e) => scrollTo(e, 'order')}>
-                  Get Quote <i className="fas fa-arrow-right"></i>
+                  Order Now <i className="fas fa-arrow-right"></i>
                 </a>
               </div>
             ))}
@@ -286,23 +204,22 @@ export default function Home() {
         </div>
       </section>
 
-      {/* How It Works */}
+      {/* How It Works - 4 Steps */}
       <section id="how-it-works" className="cert-how">
         <div className="container">
           <h2 className="cert-section-title fade-in" ref={addFadeRef}>How It Works</h2>
-          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>Get your certified translation in 3 simple steps</p>
+          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>Receive accurate translations quickly in 4 easy steps</p>
 
-          <div className="steps-grid">
+          <div className="steps-grid four-steps">
             {[
-              { step: '1', icon: 'fa-cloud-upload-alt', title: 'Upload Your Document', desc: 'Upload a clear scan or photo of your document. We accept PDF, JPG, PNG, and Word formats. Your files are encrypted and secure.' },
-              { step: '2', icon: 'fa-language', title: 'Professional Translation', desc: 'Our certified human translators work on your document, ensuring accuracy and compliance with USCIS and official requirements.' },
-              { step: '3', icon: 'fa-file-download', title: 'Receive Certified Translation', desc: 'Get your certified translation delivered digitally. Includes a signed Certificate of Accuracy. Physical copies available upon request.' },
+              { step: '1', icon: 'fa-cloud-upload-alt', title: 'Upload Your Documents', desc: 'Upload scans or photos of your documents. We accept PDF, JPG, PNG, and Word formats. All files are encrypted.' },
+              { step: '2', icon: 'fa-sliders-h', title: 'Choose Options & Pay', desc: 'Select languages, certification type, service tier, and delivery speed. Pay securely online with transparent pricing.' },
+              { step: '3', icon: 'fa-language', title: 'Professional Translation', desc: 'A certified human translator works on your document. A second linguist proofreads for accuracy and quality assurance.' },
+              { step: '4', icon: 'fa-file-download', title: 'Receive Your Translation', desc: 'Get your certified translation delivered via email as a signed PDF. Physical copies with hard stamps available via FedEx.' },
             ].map((item, i) => (
               <div key={i} className="step-card fade-in" ref={addFadeRef}>
                 <div className="step-number">{item.step}</div>
-                <div className="step-icon">
-                  <i className={`fas ${item.icon}`}></i>
-                </div>
+                <div className="step-icon"><i className={`fas ${item.icon}`}></i></div>
                 <h3>{item.title}</h3>
                 <p>{item.desc}</p>
               </div>
@@ -311,11 +228,73 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Accepted Documents */}
+      {/* Pricing Tiers */}
+      <section id="pricing" className="cert-pricing">
+        <div className="container">
+          <h2 className="cert-section-title fade-in" ref={addFadeRef}>Transparent Pricing</h2>
+          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>Choose the service tier that fits your needs. No hidden fees.</p>
+
+          <div className="pricing-grid">
+            <div className="pricing-card fade-in" ref={addFadeRef}>
+              <h3>Standard</h3>
+              <div className="pricing-amount">$19.00</div>
+              <div className="pricing-per">per page</div>
+              <p className="tier-desc">Accurate, certified translations for straightforward personal documents.</p>
+              <ul className="pricing-features">
+                <li><i className="fas fa-check"></i> Certified translation</li>
+                <li><i className="fas fa-check"></i> Certificate of Accuracy</li>
+                <li><i className="fas fa-check"></i> USCIS / Courts accepted</li>
+                <li><i className="fas fa-check"></i> 2-3 business days</li>
+                <li><i className="fas fa-check"></i> Digital delivery (PDF)</li>
+                <li><i className="fas fa-check"></i> Free revisions</li>
+              </ul>
+              <p className="tier-best">Best for: Birth, marriage, police, or academic certificates</p>
+              <button className="btn-pricing" onClick={(e) => { setServiceTier('standard'); scrollTo(e, 'order'); }}>Order Now</button>
+            </div>
+
+            <div className="pricing-card featured fade-in" ref={addFadeRef}>
+              <div className="popular-badge">Most Popular</div>
+              <h3>Professional</h3>
+              <div className="pricing-amount">$29.00</div>
+              <div className="pricing-per">per page</div>
+              <p className="tier-desc">Translated and proofread by a second linguist for error-free, polished results.</p>
+              <ul className="pricing-features">
+                <li><i className="fas fa-check"></i> Everything in Standard</li>
+                <li><i className="fas fa-check"></i> Second linguist proofreading</li>
+                <li><i className="fas fa-check"></i> 24-hour delivery available</li>
+                <li><i className="fas fa-check"></i> Direct translator contact</li>
+                <li><i className="fas fa-check"></i> Notarization available</li>
+                <li><i className="fas fa-check"></i> Hard copy mailing included</li>
+              </ul>
+              <p className="tier-best">Best for: Contracts, business proposals, government docs</p>
+              <button className="btn-pricing featured" onClick={(e) => { setServiceTier('professional'); scrollTo(e, 'order'); }}>Order Now</button>
+            </div>
+
+            <div className="pricing-card fade-in" ref={addFadeRef}>
+              <h3>Specialist</h3>
+              <div className="pricing-amount">$39.00</div>
+              <div className="pricing-per">per page</div>
+              <p className="tier-desc">Field-specific experts handle complex or technical translations.</p>
+              <ul className="pricing-features">
+                <li><i className="fas fa-check"></i> Everything in Professional</li>
+                <li><i className="fas fa-check"></i> Field-specific expert translator</li>
+                <li><i className="fas fa-check"></i> Same-day delivery available</li>
+                <li><i className="fas fa-check"></i> Dedicated project manager</li>
+                <li><i className="fas fa-check"></i> Apostille available</li>
+                <li><i className="fas fa-check"></i> Hard copy via FedEx Express</li>
+              </ul>
+              <p className="tier-best">Best for: Medical records, legal docs, technical manuals</p>
+              <button className="btn-pricing" onClick={(e) => { setServiceTier('specialist'); scrollTo(e, 'order'); }}>Order Now</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Documents */}
       <section id="documents" className="cert-documents">
         <div className="container">
           <h2 className="cert-section-title fade-in" ref={addFadeRef}>Accepted Document Types</h2>
-          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>We translate all types of personal, legal, and business documents</p>
+          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>We translate all types of personal, legal, academic, and business documents</p>
 
           <div className="docs-grid fade-in" ref={addFadeRef}>
             {[
@@ -333,81 +312,16 @@ export default function Home() {
               { icon: 'fa-university', label: 'Bank Statements' },
               { icon: 'fa-building', label: 'Business Licenses' },
               { icon: 'fa-file-invoice-dollar', label: 'Financial Documents' },
-              { icon: 'fa-vote-yea', label: 'Voter Registration' },
+              { icon: 'fa-shield-alt', label: 'Police Clearances' },
               { icon: 'fa-file-signature', label: 'Power of Attorney' },
+              { icon: 'fa-certificate', label: 'Professional Certificates' },
+              { icon: 'fa-vote-yea', label: 'Immigration Forms' },
             ].map((doc, i) => (
               <div key={i} className="doc-item">
                 <i className={`fas ${doc.icon}`}></i>
                 <span>{doc.label}</span>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section id="pricing" className="cert-pricing">
-        <div className="container">
-          <h2 className="cert-section-title fade-in" ref={addFadeRef}>Transparent Pricing</h2>
-          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>No hidden fees. Price per page includes certification.</p>
-
-          <div className="pricing-grid">
-            <div className="pricing-card fade-in" ref={addFadeRef}>
-              <h3>Standard</h3>
-              <div className="pricing-amount">$19.00</div>
-              <div className="pricing-per">per page</div>
-              <ul className="pricing-features">
-                <li><i className="fas fa-check"></i> Certified translation</li>
-                <li><i className="fas fa-check"></i> Certificate of Accuracy</li>
-                <li><i className="fas fa-check"></i> USCIS accepted</li>
-                <li><i className="fas fa-check"></i> 2-3 business days</li>
-                <li><i className="fas fa-check"></i> Digital delivery (PDF)</li>
-                <li><i className="fas fa-check"></i> Free revisions</li>
-              </ul>
-              <button className="btn-pricing" onClick={() => { toast.success('Standard plan selected!'); document.getElementById('order')?.scrollIntoView({ behavior: 'smooth' }); }}>
-                Order Now
-              </button>
-            </div>
-
-            <div className="pricing-card featured fade-in" ref={addFadeRef}>
-              <div className="popular-badge">Most Popular</div>
-              <h3>Express</h3>
-              <div className="pricing-amount">$23.75</div>
-              <div className="pricing-per">per page</div>
-              <ul className="pricing-features">
-                <li><i className="fas fa-check"></i> Everything in Standard</li>
-                <li><i className="fas fa-check"></i> 24-hour delivery</li>
-                <li><i className="fas fa-check"></i> Priority processing</li>
-                <li><i className="fas fa-check"></i> Email notifications</li>
-                <li><i className="fas fa-check"></i> Direct translator contact</li>
-                <li><i className="fas fa-check"></i> Free hard copy mailing</li>
-              </ul>
-              <button className="btn-pricing featured" onClick={() => { toast.success('Express plan selected!'); document.getElementById('order')?.scrollIntoView({ behavior: 'smooth' }); }}>
-                Order Now
-              </button>
-            </div>
-
-            <div className="pricing-card fade-in" ref={addFadeRef}>
-              <h3>Rush</h3>
-              <div className="pricing-amount">$28.50</div>
-              <div className="pricing-per">per page</div>
-              <ul className="pricing-features">
-                <li><i className="fas fa-check"></i> Everything in Express</li>
-                <li><i className="fas fa-check"></i> Same-day delivery</li>
-                <li><i className="fas fa-check"></i> Dedicated translator</li>
-                <li><i className="fas fa-check"></i> Phone support</li>
-                <li><i className="fas fa-check"></i> Notarization available</li>
-                <li><i className="fas fa-check"></i> Hard copy via FedEx</li>
-              </ul>
-              <button className="btn-pricing" onClick={() => { toast.success('Rush plan selected!'); document.getElementById('order')?.scrollIntoView({ behavior: 'smooth' }); }}>
-                Order Now
-              </button>
-            </div>
-          </div>
-
-          <div className="pricing-note fade-in" ref={addFadeRef}>
-            <i className="fas fa-info-circle"></i>
-            <p>Need a high-volume or business discount? <a href="#contact" onClick={(e) => scrollTo(e, 'contact')}>Contact us</a> for custom pricing.</p>
           </div>
         </div>
       </section>
@@ -427,139 +341,63 @@ export default function Home() {
                 <li><i className="fas fa-check-circle"></i> Compliant with 8 CFR 103.2(b)(3)</li>
                 <li><i className="fas fa-check-circle"></i> Signed Certificate of Accuracy included</li>
                 <li><i className="fas fa-check-circle"></i> Accepted by all USCIS offices nationwide</li>
-                <li><i className="fas fa-check-circle"></i> Accepted by courts and government agencies</li>
-                <li><i className="fas fa-check-circle"></i> Notarization available upon request</li>
+                <li><i className="fas fa-check-circle"></i> Accepted by courts, universities, and banks</li>
+                <li><i className="fas fa-check-circle"></i> Notarization & Apostille available</li>
               </ul>
               <a href="#order" className="btn-cert-primary" onClick={(e) => scrollTo(e, 'order')}>
-                <i className="fas fa-file-alt"></i> Start Your Translation
+                <i className="fas fa-shopping-cart"></i> Order Your Translation
               </a>
             </div>
             <div className="uscis-badge">
               <div className="big-badge">
                 <i className="fas fa-certificate"></i>
                 <span>100%</span>
-                <small>USCIS Acceptance Guarantee</small>
+                <small>Acceptance Guarantee or Full Refund</small>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Order Form */}
+      {/* Why Choose Us */}
+      <section className="cert-why">
+        <div className="container">
+          <h2 className="cert-section-title fade-in" ref={addFadeRef}>Why Choose TRADUX</h2>
+          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>Here are some reasons to choose us for your translation needs</p>
+
+          <div className="why-grid">
+            {[
+              { icon: 'fa-laptop', title: 'Order Online Easily', desc: 'Order all services online with ease. No need to contact us for a quote — get instant transparent pricing.' },
+              { icon: 'fa-dollar-sign', title: 'Transparent Fixed Prices', desc: 'Know the cost upfront. No hidden fees, no surprises. Fixed per-page pricing for all services.' },
+              { icon: 'fa-clock', title: '24/7 Support & Delivery', desc: 'Round-the-clock support powered by a global team. Same-day and 24-hour delivery options available.' },
+              { icon: 'fa-robot', title: 'Fast & Efficient Process', desc: 'Over 50% of our delivery process is automated, ensuring fast and efficient service every time.' },
+              { icon: 'fa-comments', title: 'Direct Translator Contact', desc: 'Communicate directly with your assigned translator or project manager to ensure clarity and accuracy.' },
+              { icon: 'fa-user-shield', title: 'Data Security & NDA', desc: 'Industry-leading practices ensure confidential data remains secure. All staff bound by strict NDAs.' },
+            ].map((item, i) => (
+              <div key={i} className="why-card fade-in" ref={addFadeRef}>
+                <div className="why-icon"><i className={`fas ${item.icon}`}></i></div>
+                <h3>{item.title}</h3>
+                <p>{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ORDER FORM - Direct Order */}
       <section id="order" className="cert-order">
         <div className="container">
           <h2 className="cert-section-title fade-in" ref={addFadeRef}>Place Your Order</h2>
-          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>Upload your documents and receive a quote within minutes</p>
+          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>Upload your documents, choose your options, and submit your order</p>
 
           <div className="order-container fade-in" ref={addFadeRef}>
             <form onSubmit={handleOrderSubmit} className="order-form">
-              <div className="order-section">
-                <h3><i className="fas fa-user"></i> Your Information</h3>
-                <div className="order-row">
-                  <div className="order-field">
-                    <label htmlFor="full-name">Full Name *</label>
-                    <input type="text" id="full-name" placeholder="John Smith" required />
-                  </div>
-                  <div className="order-field">
-                    <label htmlFor="email">Email *</label>
-                    <input type="email" id="email" placeholder="john@email.com" required />
-                  </div>
-                </div>
-                <div className="order-row">
-                  <div className="order-field">
-                    <label htmlFor="phone">Phone</label>
-                    <input type="tel" id="phone" placeholder="(555) 123-4567" />
-                  </div>
-                  <div className="order-field">
-                    <label htmlFor="order-purpose">Purpose *</label>
-                    <select id="order-purpose" required defaultValue="">
-                      <option value="" disabled>Select purpose</option>
-                      <option value="uscis">USCIS / Immigration</option>
-                      <option value="university">University / Education</option>
-                      <option value="legal">Legal / Court</option>
-                      <option value="personal">Personal Use</option>
-                      <option value="business">Business</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
 
+              {/* Step 1: Upload */}
               <div className="order-section">
-                <h3><i className="fas fa-language"></i> Translation Details</h3>
-                <div className="order-row">
-                  <div className="order-field">
-                    <label htmlFor="order-source">Source Language *</label>
-                    <select id="order-source" required defaultValue="portuguese">
-                      <option value="portuguese">Portuguese</option>
-                      <option value="spanish">Spanish</option>
-                      <option value="french">French</option>
-                      <option value="german">German</option>
-                      <option value="italian">Italian</option>
-                      <option value="chinese">Chinese</option>
-                      <option value="japanese">Japanese</option>
-                      <option value="korean">Korean</option>
-                      <option value="arabic">Arabic</option>
-                      <option value="russian">Russian</option>
-                      <option value="english">English</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div className="order-field">
-                    <label htmlFor="order-target">Target Language *</label>
-                    <select id="order-target" required defaultValue="english">
-                      <option value="english">English</option>
-                      <option value="portuguese">Portuguese</option>
-                      <option value="spanish">Spanish</option>
-                      <option value="french">French</option>
-                      <option value="german">German</option>
-                      <option value="italian">Italian</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="order-row">
-                  <div className="order-field">
-                    <label htmlFor="order-doc-type">Document Type *</label>
-                    <select id="order-doc-type" required defaultValue="">
-                      <option value="" disabled>Select document type</option>
-                      <option value="birth-certificate">Birth Certificate</option>
-                      <option value="marriage-certificate">Marriage Certificate</option>
-                      <option value="divorce-decree">Divorce Decree</option>
-                      <option value="death-certificate">Death Certificate</option>
-                      <option value="diploma">Diploma / Degree</option>
-                      <option value="transcript">Academic Transcript</option>
-                      <option value="passport">Passport</option>
-                      <option value="drivers-license">Driver's License</option>
-                      <option value="medical-record">Medical Record</option>
-                      <option value="legal-document">Legal Document</option>
-                      <option value="bank-statement">Bank Statement</option>
-                      <option value="business-document">Business Document</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div className="order-field">
-                    <label htmlFor="order-delivery">Delivery Speed *</label>
-                    <select id="order-delivery" required defaultValue="standard">
-                      <option value="standard">Standard (2-3 days) - $19.00/pg</option>
-                      <option value="express">Express (24h) - $23.75/pg</option>
-                      <option value="rush">Rush (Same day) - $28.50/pg</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="order-section">
-                <h3><i className="fas fa-upload"></i> Upload Documents</h3>
+                <h3><span className="order-step-num">1</span> Upload Your Documents</h3>
                 <div className="upload-area">
-                  <input
-                    type="file"
-                    id="file-upload"
-                    multiple
-                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                    onChange={handleFileChange}
-                    className="file-input"
-                  />
+                  <input type="file" id="file-upload" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onChange={handleFileChange} className="file-input" />
                   <label htmlFor="file-upload" className="upload-label">
                     <i className="fas fa-cloud-upload-alt"></i>
                     <span>Click to upload or drag files here</span>
@@ -579,18 +417,185 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* Step 2: Translation Details */}
               <div className="order-section">
-                <h3><i className="fas fa-sticky-note"></i> Additional Notes</h3>
-                <textarea
-                  id="order-notes"
-                  rows={3}
-                  placeholder="Any specific instructions, name spellings, or special requirements..."
-                ></textarea>
+                <h3><span className="order-step-num">2</span> Translation Details</h3>
+                <div className="order-row">
+                  <div className="order-field">
+                    <label htmlFor="order-source">Source Language *</label>
+                    <select id="order-source" required defaultValue="portuguese">
+                      <option value="portuguese">Portuguese</option>
+                      <option value="spanish">Spanish</option>
+                      <option value="french">French</option>
+                      <option value="german">German</option>
+                      <option value="italian">Italian</option>
+                      <option value="chinese">Chinese (Simplified)</option>
+                      <option value="chinese-trad">Chinese (Traditional)</option>
+                      <option value="japanese">Japanese</option>
+                      <option value="korean">Korean</option>
+                      <option value="arabic">Arabic</option>
+                      <option value="russian">Russian</option>
+                      <option value="hindi">Hindi</option>
+                      <option value="polish">Polish</option>
+                      <option value="dutch">Dutch</option>
+                      <option value="turkish">Turkish</option>
+                      <option value="vietnamese">Vietnamese</option>
+                      <option value="thai">Thai</option>
+                      <option value="english">English</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="order-field">
+                    <label htmlFor="order-target">Target Language *</label>
+                    <select id="order-target" required defaultValue="english">
+                      <option value="english">English</option>
+                      <option value="portuguese">Portuguese</option>
+                      <option value="spanish">Spanish</option>
+                      <option value="french">French</option>
+                      <option value="german">German</option>
+                      <option value="italian">Italian</option>
+                      <option value="chinese">Chinese (Simplified)</option>
+                      <option value="japanese">Japanese</option>
+                      <option value="korean">Korean</option>
+                      <option value="arabic">Arabic</option>
+                      <option value="russian">Russian</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="order-row">
+                  <div className="order-field">
+                    <label htmlFor="order-doc-type">Document Type *</label>
+                    <select id="order-doc-type" required defaultValue="">
+                      <option value="" disabled>Select document type</option>
+                      <option value="birth-certificate">Birth Certificate</option>
+                      <option value="marriage-certificate">Marriage Certificate</option>
+                      <option value="divorce-decree">Divorce Decree</option>
+                      <option value="death-certificate">Death Certificate</option>
+                      <option value="diploma">Diploma / Degree</option>
+                      <option value="transcript">Academic Transcript</option>
+                      <option value="passport">Passport</option>
+                      <option value="drivers-license">Driver's License</option>
+                      <option value="police-clearance">Police Clearance</option>
+                      <option value="medical-record">Medical Record</option>
+                      <option value="legal-document">Legal Document / Contract</option>
+                      <option value="court-document">Court Document</option>
+                      <option value="bank-statement">Bank Statement</option>
+                      <option value="business-document">Business Document</option>
+                      <option value="immigration-form">Immigration Form</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="order-field">
+                    <label htmlFor="order-purpose">Purpose *</label>
+                    <select id="order-purpose" required defaultValue="">
+                      <option value="" disabled>Select purpose</option>
+                      <option value="uscis">USCIS / Immigration</option>
+                      <option value="university">University / Education (WES, ECE)</option>
+                      <option value="legal">Legal / Court</option>
+                      <option value="embassy">Embassy / Consulate</option>
+                      <option value="business">Business / Corporate</option>
+                      <option value="personal">Personal Use</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 3: Service Options */}
+              <div className="order-section">
+                <h3><span className="order-step-num">3</span> Service Options</h3>
+
+                <label className="field-label">Service Tier *</label>
+                <div className="tier-selector">
+                  {[
+                    { value: 'standard', label: 'Standard', price: '$19/pg', desc: 'Certified translation' },
+                    { value: 'professional', label: 'Professional', price: '$29/pg', desc: 'Translated + Proofread' },
+                    { value: 'specialist', label: 'Specialist', price: '$39/pg', desc: 'Field-specific expert' },
+                  ].map((tier) => (
+                    <label key={tier.value} className={`tier-option ${serviceTier === tier.value ? 'selected' : ''}`}>
+                      <input type="radio" name="service-tier" value={tier.value} checked={serviceTier === tier.value} onChange={(e) => setServiceTier(e.target.value)} />
+                      <div className="tier-option-content">
+                        <strong>{tier.label}</strong>
+                        <span className="tier-price-tag">{tier.price}</span>
+                        <small>{tier.desc}</small>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+
+                <div className="order-row" style={{ marginTop: '1rem' }}>
+                  <div className="order-field">
+                    <label htmlFor="order-cert-type">Certification Type *</label>
+                    <select id="order-cert-type" value={certType} onChange={(e) => setCertType(e.target.value)} required>
+                      <option value="certified">Company Certified (included)</option>
+                      <option value="notarized">Notarized (+$15)</option>
+                      <option value="apostille">Apostille (+$75)</option>
+                    </select>
+                  </div>
+                  <div className="order-field">
+                    <label htmlFor="order-delivery">Delivery Speed *</label>
+                    <select id="order-delivery" required defaultValue="standard">
+                      <option value="standard">Standard (2-3 business days)</option>
+                      <option value="urgent">Urgent (24 hours)</option>
+                      <option value="same-day">Same Day (12 hours)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 4: Your Info */}
+              <div className="order-section">
+                <h3><span className="order-step-num">4</span> Your Information</h3>
+                <div className="order-row">
+                  <div className="order-field">
+                    <label htmlFor="full-name">Full Name *</label>
+                    <input type="text" id="full-name" placeholder="John Smith" required />
+                  </div>
+                  <div className="order-field">
+                    <label htmlFor="email">Email *</label>
+                    <input type="email" id="email" placeholder="john@email.com" required />
+                  </div>
+                </div>
+                <div className="order-row">
+                  <div className="order-field">
+                    <label htmlFor="phone">Phone (optional)</label>
+                    <input type="tel" id="phone" placeholder="+1 (555) 123-4567" />
+                  </div>
+                  <div className="order-field">
+                    <label htmlFor="order-delivery-method">Delivery Method</label>
+                    <select id="order-delivery-method" defaultValue="email">
+                      <option value="email">Email (PDF) - Free</option>
+                      <option value="mail">Mail Hard Copy (+$15)</option>
+                      <option value="fedex">FedEx Express (+$35)</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="order-field" style={{ marginBottom: '1rem' }}>
+                  <label htmlFor="order-notes">Additional Notes</label>
+                  <textarea id="order-notes" rows={3} placeholder="Name spellings, special instructions, or any details about your documents..."></textarea>
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div className="order-summary">
+                <div className="summary-row">
+                  <span>Service Tier</span>
+                  <strong>{serviceTier.charAt(0).toUpperCase() + serviceTier.slice(1)} — ${tierPrices[serviceTier]?.toFixed(2)}/page</strong>
+                </div>
+                <div className="summary-row">
+                  <span>Certification</span>
+                  <strong>{certType === 'certified' ? 'Company Certified (included)' : certType === 'notarized' ? 'Notarized (+$15)' : 'Apostille (+$75)'}</strong>
+                </div>
+                <div className="summary-row">
+                  <span>Documents</span>
+                  <strong>{selectedFiles.length} file(s) uploaded</strong>
+                </div>
               </div>
 
               <div className="order-security">
                 <i className="fas fa-lock"></i>
-                <span>Your files are encrypted and secure. Only essential staff with NDAs have access.</span>
+                <span>Your files are encrypted with 256-bit SSL. Only essential staff with NDAs have access to your documents.</span>
               </div>
 
               <button
@@ -600,11 +605,11 @@ export default function Home() {
                 style={formSuccess ? { background: 'linear-gradient(135deg, #10b981, #059669)' } : undefined}
               >
                 {formLoading ? (
-                  <><i className="fas fa-spinner fa-spin"></i> Submitting...</>
+                  <><i className="fas fa-spinner fa-spin"></i> Processing Order...</>
                 ) : formSuccess ? (
-                  <><i className="fas fa-check"></i> Order Received!</>
+                  <><i className="fas fa-check"></i> Order Placed Successfully!</>
                 ) : (
-                  <><i className="fas fa-paper-plane"></i> Submit Order &amp; Get Quote</>
+                  <><i className="fas fa-shopping-cart"></i> Place Order</>
                 )}
               </button>
             </form>
@@ -616,31 +621,53 @@ export default function Home() {
       <section className="cert-testimonials">
         <div className="container">
           <h2 className="cert-section-title fade-in" ref={addFadeRef}>What Our Clients Say</h2>
-          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>Trusted by thousands of clients for certified translations</p>
+          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>Rated 4.9/5 by thousands of satisfied clients</p>
 
           <div className="testimonials-grid">
             {[
-              { name: 'Maria S.', location: 'Boston, MA', rating: 5, text: 'I needed a certified translation of my Brazilian birth certificate for USCIS. The quote came in minutes and the translation was ready the next day. Perfect quality!' },
-              { name: 'Carlos R.', location: 'Miami, FL', rating: 5, text: 'Excellent service for my immigration documents. They translated my marriage certificate and diploma from Portuguese. USCIS accepted everything without issues.' },
-              { name: 'Ana P.', location: 'New York, NY', rating: 5, text: 'Fast, professional, and affordable. I needed rush translations for court documents and they delivered same day. Highly recommend for any legal translations.' },
-              { name: 'Roberto M.', location: 'Los Angeles, CA', rating: 5, text: "The best translation service I've used. They translated my medical records from Spanish with incredible accuracy. The certified translation was accepted by my insurance company." },
+              { name: 'Maria S.', location: 'Boston, MA', rating: 5, text: 'I needed a certified translation of my Brazilian birth certificate for USCIS. The translation was ready the next day and USCIS accepted it without any issues. Amazing service!' },
+              { name: 'Carlos R.', location: 'Miami, FL', rating: 5, text: 'Translated my marriage certificate and diploma from Portuguese to English. The process was so easy — just uploaded the docs and paid. Everything accepted by USCIS!' },
+              { name: 'Ana P.', location: 'New York, NY', rating: 5, text: 'Needed rush notarized translations for court documents and they delivered same day. The quality was impeccable and the notarization was done professionally.' },
+              { name: 'Roberto M.', location: 'Los Angeles, CA', rating: 5, text: 'Best translation service I\'ve used. They translated my medical records from Spanish with incredible accuracy. Direct contact with the translator made all the difference.' },
             ].map((review, i) => (
               <div key={i} className="testimonial-card fade-in" ref={addFadeRef}>
                 <div className="stars">
-                  {[...Array(review.rating)].map((_, j) => (
-                    <i key={j} className="fas fa-star"></i>
-                  ))}
+                  {[...Array(review.rating)].map((_, j) => (<i key={j} className="fas fa-star"></i>))}
                 </div>
                 <p>"{review.text}"</p>
                 <div className="reviewer">
-                  <div className="reviewer-avatar">
-                    {review.name.charAt(0)}
-                  </div>
-                  <div>
-                    <strong>{review.name}</strong>
-                    <span>{review.location}</span>
-                  </div>
+                  <div className="reviewer-avatar">{review.name.charAt(0)}</div>
+                  <div><strong>{review.name}</strong><span>{review.location}</span></div>
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="cert-faq">
+        <div className="container">
+          <h2 className="cert-section-title fade-in" ref={addFadeRef}>Frequently Asked Questions</h2>
+          <p className="cert-section-subtitle fade-in" ref={addFadeRef}>Find answers to common questions about our services</p>
+
+          <div className="faq-list fade-in" ref={addFadeRef}>
+            {[
+              { q: 'What is a certified translation?', a: 'A certified translation includes a signed Certificate of Accuracy from the translation company, confirming that the translation is complete and accurate. It is required by USCIS, courts, universities, and other official institutions.' },
+              { q: 'Will my translation be accepted by USCIS?', a: 'Yes. All our certified translations comply with USCIS requirements as stated in the Code of Federal Regulations, 8 CFR 103.2(b)(3). We offer a 100% acceptance guarantee — if your translation is not accepted, we provide a full refund.' },
+              { q: 'How long does a certified translation take?', a: 'Standard delivery is 2-3 business days. We also offer Urgent (24-hour) and Same-Day (12-hour) delivery options for an additional fee. Most single-page documents can be completed within 24 hours.' },
+              { q: 'What is the difference between Standard, Professional, and Specialist tiers?', a: 'Standard provides accurate certified translations for straightforward documents. Professional adds a second linguist review for error-free, polished results. Specialist uses field-specific experts for complex materials like medical records, legal documents, or technical manuals.' },
+              { q: 'Do you offer notarized or apostille translations?', a: 'Yes. Notarized translations include a Notary Public signature and stamp. Apostille translations are legalized by the Secretary of State for use in Hague Convention countries. Both options are available during the order process.' },
+              { q: 'What languages do you support?', a: 'We support 50+ languages including Portuguese, Spanish, French, German, Italian, Chinese, Japanese, Korean, Arabic, Russian, Hindi, Polish, Dutch, Turkish, Vietnamese, Thai, and many more.' },
+              { q: 'How do I receive my translated document?', a: 'By default, you receive a digitally signed and stamped PDF via email. You can also request a physical hard copy mailed to you, or FedEx Express delivery for faster receipt.' },
+              { q: 'Is my data secure?', a: 'Absolutely. Your files are encrypted with 256-bit SSL. All team members are bound by strict Non-Disclosure Agreements (NDAs). Files are only accessible during the active order period and deleted upon completion.' },
+            ].map((item, i) => (
+              <div key={i} className={`faq-item ${openFaq === i ? 'open' : ''}`}>
+                <button className="faq-question" onClick={() => setOpenFaq(openFaq === i ? null : i)}>
+                  <span>{item.q}</span>
+                  <i className={`fas ${openFaq === i ? 'fa-minus' : 'fa-plus'}`}></i>
+                </button>
+                {openFaq === i && <div className="faq-answer"><p>{item.a}</p></div>}
               </div>
             ))}
           </div>
@@ -651,16 +678,14 @@ export default function Home() {
       <section className="cert-cta-section">
         <div className="container">
           <div className="cert-cta-content fade-in" ref={addFadeRef}>
-            <h2>Need a Certified Translation?</h2>
-            <p>Get started today. Upload your document and receive a quote within minutes. 100% USCIS acceptance guaranteed.</p>
+            <h2>Ready to Get Your Translation?</h2>
+            <p>Upload your documents, choose your options, and receive your certified translation. 100% acceptance guaranteed.</p>
             <div className="cert-cta-buttons">
               <a href="#order" className="btn-cert-primary" onClick={(e) => scrollTo(e, 'order')}>
-                <i className="fas fa-paper-plane"></i>
-                Get Free Quote
+                <i className="fas fa-shopping-cart"></i> Order Now &mdash; From $19.00/page
               </a>
               <a href="tel:+16893094980" className="btn-cert-outline-dark">
-                <i className="fas fa-phone"></i>
-                Call (689) 309-4980
+                <i className="fas fa-phone"></i> Call (689) 309-4980
               </a>
             </div>
           </div>
@@ -673,7 +698,7 @@ export default function Home() {
           <div className="footer-grid">
             <div className="footer-col">
               <h3>TRADUX</h3>
-              <p>Professional certified translation services for immigration, legal, academic, and personal documents.</p>
+              <p>Professional certified, notarized, and apostille translation services for immigration, legal, academic, and business documents.</p>
               <p><i className="fas fa-envelope"></i> contact@tradux.online</p>
               <p><i className="fas fa-phone"></i> +1 (689) 309-4980</p>
               <p><i className="fas fa-map-marker-alt"></i> Boston, MA, United States</p>
@@ -681,38 +706,28 @@ export default function Home() {
             <div className="footer-col">
               <h3>Services</h3>
               <a href="#services" onClick={(e) => scrollTo(e, 'services')}>Certified Translations</a>
-              <a href="#services" onClick={(e) => scrollTo(e, 'services')}>Legal Translations</a>
+              <a href="#services" onClick={(e) => scrollTo(e, 'services')}>Notarized Translations</a>
+              <a href="#services" onClick={(e) => scrollTo(e, 'services')}>Apostille Services</a>
               <a href="#services" onClick={(e) => scrollTo(e, 'services')}>Academic Translations</a>
               <a href="#services" onClick={(e) => scrollTo(e, 'services')}>Immigration Documents</a>
-              <a href="#services" onClick={(e) => scrollTo(e, 'services')}>Medical Translations</a>
+              <a href="#services" onClick={(e) => scrollTo(e, 'services')}>Business Translations</a>
             </div>
             <div className="footer-col">
               <h3>Information</h3>
               <a href="#how-it-works" onClick={(e) => scrollTo(e, 'how-it-works')}>How It Works</a>
               <a href="#pricing" onClick={(e) => scrollTo(e, 'pricing')}>Pricing</a>
               <a href="#documents" onClick={(e) => scrollTo(e, 'documents')}>Accepted Documents</a>
-              <a href="#" onClick={(e) => { e.preventDefault(); toast.info('FAQ page coming soon!'); }}>FAQ</a>
+              <a href="#faq" onClick={(e) => scrollTo(e, 'faq')}>FAQ</a>
               <Link href="/professionals">For Translators</Link>
             </div>
             <div className="footer-col">
               <h3>Trust & Security</h3>
               <div className="trust-badges">
-                <div className="trust-badge-item">
-                  <i className="fas fa-shield-alt"></i>
-                  <span>USCIS Compliant</span>
-                </div>
-                <div className="trust-badge-item">
-                  <i className="fas fa-lock"></i>
-                  <span>256-bit Encryption</span>
-                </div>
-                <div className="trust-badge-item">
-                  <i className="fas fa-user-shield"></i>
-                  <span>NDA Protected</span>
-                </div>
-                <div className="trust-badge-item">
-                  <i className="fas fa-certificate"></i>
-                  <span>ATA Member</span>
-                </div>
+                <div className="trust-badge-item"><i className="fas fa-shield-alt"></i><span>USCIS Compliant</span></div>
+                <div className="trust-badge-item"><i className="fas fa-lock"></i><span>256-bit Encryption</span></div>
+                <div className="trust-badge-item"><i className="fas fa-user-shield"></i><span>NDA Protected</span></div>
+                <div className="trust-badge-item"><i className="fas fa-certificate"></i><span>ATA Member</span></div>
+                <div className="trust-badge-item"><i className="fas fa-award"></i><span>100% Acceptance Guarantee</span></div>
               </div>
             </div>
           </div>
