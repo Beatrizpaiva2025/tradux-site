@@ -2,11 +2,15 @@ import { useState, useEffect, useRef, useCallback, type FormEvent, type ChangeEv
 import { toast } from 'sonner';
 import { Link } from 'wouter';
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://tradux-api.onrender.com/api';
+
 export default function Home() {
   const [headerScrolled, setHeaderScrolled] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
-  const [formSuccess, setFormSuccess] = useState(false);
+  const formSuccess = false; // Redirects to Stripe, success shown on /success page
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadedDocs, setUploadedDocs] = useState<{id: string; filename: string; page_count: number}[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
@@ -41,31 +45,98 @@ export default function Home() {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) setSelectedFiles(Array.from(e.target.files));
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const files = Array.from(e.target.files);
+    setSelectedFiles(files);
+    setUploading(true);
+
+    const uploaded: typeof uploadedDocs = [];
+    for (const file of files) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const resp = await fetch(`${API_URL}/upload-document`, { method: 'POST', body: formData });
+        if (resp.ok) {
+          const data = await resp.json();
+          uploaded.push({ id: data.document_id, filename: data.filename, page_count: data.page_count });
+        } else {
+          toast.error(`Failed to upload ${file.name}`);
+        }
+      } catch {
+        toast.error(`Upload error for ${file.name}`);
+      }
+    }
+    setUploadedDocs(uploaded);
+    setUploading(false);
+    if (uploaded.length > 0) {
+      toast.success(`${uploaded.length} document(s) uploaded successfully`);
+    }
   };
 
-  const handleOrderSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleOrderSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (selectedFiles.length === 0) {
       toast.error('Please upload at least one document.');
       return;
     }
     setFormLoading(true);
-    setTimeout(() => {
-      setFormLoading(false);
-      setFormSuccess(true);
-      toast.success('Order Placed Successfully!', {
-        description: 'Your translator has been assigned. You will receive your translation within the selected timeframe.',
+
+    try {
+      const form = e.target as HTMLFormElement;
+      const totalPages = uploadedDocs.reduce((sum, d) => sum + d.page_count, 0) || 1;
+
+      // Step 1: Create quote
+      const quoteResp = await fetch(`${API_URL}/calculate-quote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service_tier: serviceTier,
+          cert_type: certType,
+          delivery_speed: (form.querySelector('#order-delivery') as HTMLSelectElement)?.value || 'standard',
+          delivery_method: (form.querySelector('#order-delivery-method') as HTMLSelectElement)?.value || 'email',
+          source_language: (form.querySelector('#order-source') as HTMLSelectElement)?.value || 'portuguese',
+          target_language: (form.querySelector('#order-target') as HTMLSelectElement)?.value || 'english',
+          document_type: (form.querySelector('#order-doc-type') as HTMLSelectElement)?.value || '',
+          purpose: (form.querySelector('#order-purpose') as HTMLSelectElement)?.value || '',
+          full_name: (form.querySelector('#full-name') as HTMLInputElement)?.value || '',
+          email: (form.querySelector('#email') as HTMLInputElement)?.value || '',
+          phone: (form.querySelector('#phone') as HTMLInputElement)?.value || '',
+          notes: (form.querySelector('#order-notes') as HTMLTextAreaElement)?.value || '',
+          page_count: totalPages,
+          document_ids: uploadedDocs.map(d => d.id),
+        }),
       });
-      setTimeout(() => {
-        setFormSuccess(false);
-        setSelectedFiles([]);
-        (e.target as HTMLFormElement).reset();
-        setServiceTier('standard');
-        setCertType('certified');
-      }, 3000);
-    }, 2500);
+
+      if (!quoteResp.ok) throw new Error('Failed to calculate quote');
+      const quote = await quoteResp.json();
+
+      // Step 2: Create Stripe checkout session
+      const checkoutResp = await fetch(`${API_URL}/create-payment-checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quote_id: quote.id,
+          origin_url: window.location.origin,
+          customer_email: (form.querySelector('#email') as HTMLInputElement)?.value || '',
+          customer_name: (form.querySelector('#full-name') as HTMLInputElement)?.value || '',
+        }),
+      });
+
+      if (!checkoutResp.ok) throw new Error('Failed to create payment session');
+      const checkout = await checkoutResp.json();
+
+      // Step 3: Redirect to Stripe
+      if (checkout.checkout_url) {
+        window.location.href = checkout.checkout_url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Something went wrong';
+      toast.error(message);
+      setFormLoading(false);
+    }
   };
 
   const tierPrices: Record<string, number> = { standard: 19.00, professional: 29.00, specialist: 39.00 };
@@ -403,13 +474,18 @@ export default function Home() {
                     <span>Click to upload or drag files here</span>
                     <small>PDF, JPG, PNG, DOC (Max 20MB each)</small>
                   </label>
-                  {selectedFiles.length > 0 && (
+                  {uploading && (
                     <div className="file-list">
-                      {selectedFiles.map((file, i) => (
+                      <div className="file-item"><i className="fas fa-spinner fa-spin"></i><span>Uploading and analyzing documents...</span></div>
+                    </div>
+                  )}
+                  {!uploading && selectedFiles.length > 0 && (
+                    <div className="file-list">
+                      {uploadedDocs.map((doc, i) => (
                         <div key={i} className="file-item">
-                          <i className="fas fa-file"></i>
-                          <span>{file.name}</span>
-                          <small>({(file.size / 1024).toFixed(1)} KB)</small>
+                          <i className="fas fa-check-circle" style={{ color: '#38a169' }}></i>
+                          <span>{doc.filename}</span>
+                          <small>({doc.page_count} page{doc.page_count > 1 ? 's' : ''})</small>
                         </div>
                       ))}
                     </div>
@@ -589,7 +665,7 @@ export default function Home() {
                 </div>
                 <div className="summary-row">
                   <span>Documents</span>
-                  <strong>{selectedFiles.length} file(s) uploaded</strong>
+                  <strong>{uploadedDocs.length} file(s) — {uploadedDocs.reduce((s, d) => s + d.page_count, 0) || 0} page(s)</strong>
                 </div>
               </div>
 

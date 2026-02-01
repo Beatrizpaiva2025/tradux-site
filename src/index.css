@@ -2588,3 +2588,348 @@ textarea::placeholder {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ================================================================
+   RESULT PAGES (Success / Cancel)
+   ================================================================ */
+.result-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  padding: 2rem;
+}
+
+.result-card {
+  background: white;
+  padding: 3rem;
+  border-radius: 20px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+}
+
+.result-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+}
+
+.result-icon i {
+  font-size: 2.5rem;
+  color: white;
+}
+
+.success-icon {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.cancel-icon {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.result-card h1 {
+  margin-bottom: 1rem;
+}
+
+.result-card p {
+  color: #64748b;
+  margin-bottom: 1.5rem;
+}
+
+.result-info {
+  background: #f1f5f9;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  text-align: left;
+}
+
+.result-info h3 {
+  margin-bottom: 1rem;
+  font-size: 1rem;
+}
+
+.result-info p {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #4a5568;
+}
+
+.result-info p i {
+  width: 20px;
+  color: #3182ce;
+  margin-right: 8px;
+}
+
+/* ================================================================
+   ADMIN DASHBOARD
+   ================================================================ */
+.admin-page {
+  min-height: 100vh;
+  background: #f7fafc;
+}
+
+.admin-header {
+  background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%);
+  padding: 1rem 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-stat-card {
+  background: white;
+  padding: 1.2rem;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+}
+
+.admin-stat-num {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #1a365d;
+}
+
+.admin-stat-label {
+  font-size: 0.78rem;
+  color: #718096;
+  font-weight: 600;
+}
+
+.admin-filter-btn {
+  padding: 6px 14px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #4a5568;
+  transition: all 0.2s;
+}
+
+.admin-filter-btn.active {
+  background: #3182ce;
+  color: white;
+  border-color: #3182ce;
+}
+
+.admin-layout {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.admin-orders-list {
+  max-height: calc(100vh - 250px);
+  overflow-y: auto;
+}
+
+.admin-order-card {
+  background: white;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 2px solid #e2e8f0;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-order-card:hover {
+  border-color: #3182ce;
+}
+
+.admin-order-card.selected {
+  border-color: #3182ce;
+  background: #ebf8ff;
+}
+
+.admin-status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.admin-order-detail {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  padding: 1.5rem;
+  min-height: 400px;
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+.admin-detail-section {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.admin-detail-section h3 {
+  font-size: 1rem;
+  color: #1a365d;
+  margin-bottom: 0.8rem;
+}
+
+.admin-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+}
+
+/* ================================================================
+   CLIENT REVIEW PAGE
+   ================================================================ */
+.review-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  padding: 2rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.review-container {
+  max-width: 800px;
+  width: 100%;
+}
+
+.review-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.review-header h1 {
+  font-size: 2rem;
+  color: #1a365d;
+  letter-spacing: 3px;
+}
+
+.review-badge {
+  display: inline-block;
+  background: #ff6b35;
+  color: white;
+  padding: 4px 16px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.review-card {
+  background: white;
+  padding: 2.5rem;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.review-card h2 {
+  color: #1a365d;
+  margin-bottom: 0.5rem;
+}
+
+.review-info-box {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  background: #f0f9ff;
+  border-left: 4px solid #3182ce;
+  padding: 1rem;
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.review-text-box {
+  padding: 1.2rem;
+  border-radius: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+  border: 1px solid #e2e8f0;
+}
+
+.review-actions {
+  margin-top: 2rem;
+}
+
+.review-approve-btn {
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.review-correction-section {
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.review-correction-section h4 {
+  color: #92400e;
+  margin-bottom: 0.8rem;
+}
+
+.review-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  margin-bottom: 0.8rem;
+  resize: vertical;
+}
+
+.review-correction-btn {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .admin-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .admin-layout {
+    grid-template-columns: 1fr;
+  }
+  .admin-order-detail {
+    position: static;
+    max-height: none;
+  }
+  .review-info-box {
+    grid-template-columns: 1fr;
+  }
+  .admin-info-grid {
+    grid-template-columns: 1fr;
+  }
+}
