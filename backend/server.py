@@ -843,14 +843,39 @@ async def stripe_webhook(request: Request, background_tasks: BackgroundTasks):
             session_id = session["id"]
             quote_id = metadata.get("quote_id")
 
-            # Update payment transaction
+            # Create order FIRST, then mark payment as paid (avoid race condition)
+            order_created = await create_order_from_payment(session_id, quote_id, metadata)
+
+            # Update payment transaction with result
             await db.payment_transactions.update_one(
                 {"session_id": session_id},
-                {"$set": {"payment_status": "paid", "updated_at": datetime.utcnow()}}
+                {"$set": {
+                    "payment_status": "paid",
+                    "order_created": order_created,
+                    "updated_at": datetime.utcnow(),
+                }}
             )
 
-            # Create the order
-            background_tasks.add_task(create_order_from_payment, session_id, quote_id, metadata)
+            # If order creation failed, notify admin immediately
+            if not order_created:
+                logger.error(f"CRITICAL: Payment {session_id} received but order creation failed (quote: {quote_id})")
+                try:
+                    await email_service.send(
+                        ADMIN_EMAIL,
+                        f"⚠ URGENT: Payment received but order NOT created — {session_id}",
+                        email_service._base_template(f"""
+                            <h2 style="color:#e53e3e;">Payment Without Order</h2>
+                            <p>A payment was received but the order could not be created automatically.</p>
+                            <div class="info-box">
+                                <p><strong>Stripe Session:</strong> {session_id}</p>
+                                <p><strong>Quote ID:</strong> {quote_id or 'N/A'}</p>
+                                <p><strong>Customer:</strong> {metadata.get('customer_name', 'N/A')} ({metadata.get('customer_email', 'N/A')})</p>
+                            </div>
+                            <p>Go to <a href="https://tradux.online/admin">Admin Panel</a> and use the <strong>Recover Missing Orders</strong> feature, or check the database manually.</p>
+                        """),
+                    )
+                except Exception as email_err:
+                    logger.error(f"Failed to send admin alert email: {email_err}")
 
         return {"status": "success", "received": True}
     except HTTPException:
@@ -860,13 +885,19 @@ async def stripe_webhook(request: Request, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=500, detail="Webhook error")
 
 
-async def create_order_from_payment(session_id: str, quote_id: str, metadata: dict):
-    """Background task: create order after successful payment"""
+async def create_order_from_payment(session_id: str, quote_id: str, metadata: dict) -> bool:
+    """Create order after successful payment. Returns True if order was created successfully."""
     try:
+        # Check if order already exists for this session (idempotency)
+        existing_order = await db.orders.find_one({"stripe_session_id": session_id})
+        if existing_order:
+            logger.info(f"Order already exists for session {session_id}: {existing_order.get('order_number')}")
+            return True
+
         quote = await db.quotes.find_one({"id": quote_id})
         if not quote:
             logger.error(f"Quote {quote_id} not found for session {session_id}")
-            return
+            return False
 
         order_count = await db.orders.count_documents({})
         order_number = f"TDX-{order_count + 1001}"
@@ -918,24 +949,29 @@ async def create_order_from_payment(session_id: str, quote_id: str, metadata: di
             {"$set": {"status": "paid", "order_id": order["id"], "order_number": order_number}}
         )
 
-        # Send confirmation emails
-        customer_email = order["customer_email"]
-        if customer_email:
+        # Send confirmation emails (non-blocking — don't fail the order if email fails)
+        try:
+            customer_email = order["customer_email"]
+            if customer_email:
+                await email_service.send(
+                    customer_email,
+                    f"Order Confirmed — {order_number} | TRADUX",
+                    email_service.order_confirmation(order),
+                )
             await email_service.send(
-                customer_email,
-                f"Order Confirmed — {order_number} | TRADUX",
-                email_service.order_confirmation(order),
+                ADMIN_EMAIL,
+                f"New Order — {order_number} | {order['customer_name']}",
+                email_service.admin_new_order(order),
             )
-        await email_service.send(
-            ADMIN_EMAIL,
-            f"New Order — {order_number} | {order['customer_name']}",
-            email_service.admin_new_order(order),
-        )
+        except Exception as email_err:
+            logger.error(f"Email sending failed for order {order_number}: {email_err}")
 
         logger.info(f"Order {order_number} created from payment {session_id}")
+        return True
 
     except Exception as e:
         logger.error(f"Error creating order from payment: {e}")
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -1295,6 +1331,88 @@ async def submit_review(order_id: str, token: str = Query(...), review: Translat
         return {"status": "correction_requested", "message": "Your correction request has been submitted. We'll update your translation shortly."}
 
     raise HTTPException(status_code=400, detail="Invalid action")
+
+
+# ---------------------------------------------------------------------------
+# Recovery — find paid transactions without orders and recreate them
+# ---------------------------------------------------------------------------
+
+@api.post("/admin/recover-orders")
+async def recover_missing_orders():
+    """Find paid payment_transactions that have no corresponding order and attempt to create them."""
+    recovered = []
+    failed = []
+
+    # Find all paid transactions
+    cursor = db.payment_transactions.find({"payment_status": "paid"})
+    async for txn in cursor:
+        session_id = txn.get("session_id")
+        quote_id = txn.get("quote_id")
+
+        if not session_id:
+            continue
+
+        # Check if an order already exists for this session
+        existing_order = await db.orders.find_one({"stripe_session_id": session_id})
+        if existing_order:
+            continue  # Order exists, no recovery needed
+
+        # Try to create the order
+        metadata = {
+            "customer_name": txn.get("customer_name", ""),
+            "customer_email": txn.get("customer_email", ""),
+        }
+        success = await create_order_from_payment(session_id, quote_id, metadata)
+
+        if success:
+            # Mark transaction as recovered
+            await db.payment_transactions.update_one(
+                {"session_id": session_id},
+                {"$set": {"order_created": True, "recovered_at": datetime.utcnow()}}
+            )
+            order = await db.orders.find_one({"stripe_session_id": session_id})
+            recovered.append({
+                "session_id": session_id,
+                "quote_id": quote_id,
+                "order_number": order.get("order_number") if order else "unknown",
+            })
+        else:
+            failed.append({
+                "session_id": session_id,
+                "quote_id": quote_id,
+                "reason": "Quote not found or creation error",
+            })
+
+    return {
+        "recovered": recovered,
+        "recovered_count": len(recovered),
+        "failed": failed,
+        "failed_count": len(failed),
+    }
+
+
+@api.get("/admin/missing-orders")
+async def list_missing_orders():
+    """List paid transactions that don't have a corresponding order (diagnostic endpoint)."""
+    missing = []
+    cursor = db.payment_transactions.find({"payment_status": "paid"})
+    async for txn in cursor:
+        session_id = txn.get("session_id")
+        if not session_id:
+            continue
+        existing_order = await db.orders.find_one({"stripe_session_id": session_id})
+        if not existing_order:
+            txn.pop("_id", None)
+            # Also look up the quote for context
+            quote = await db.quotes.find_one({"id": txn.get("quote_id")}) if txn.get("quote_id") else None
+            missing.append({
+                "transaction": txn,
+                "quote_found": quote is not None,
+                "quote_customer": quote.get("customer_name") if quote else None,
+                "quote_email": quote.get("customer_email") if quote else None,
+                "quote_document_ids": quote.get("document_ids", []) if quote else [],
+            })
+    return {"missing_orders": missing, "count": len(missing)}
 
 
 # ---------------------------------------------------------------------------

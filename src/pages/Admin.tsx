@@ -71,6 +71,27 @@ export default function Admin() {
   const [actionLoading, setActionLoading] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [aiCommands, setAiCommands] = useState('');
+  const [recoverLoading, setRecoverLoading] = useState(false);
+
+  const recoverMissingOrders = async () => {
+    setRecoverLoading(true);
+    try {
+      const resp = await fetch(`${API_URL}/admin/recover-orders`, { method: 'POST' });
+      const data = await resp.json();
+      if (data.recovered_count > 0) {
+        toast.success(`Recovered ${data.recovered_count} missing order(s): ${data.recovered.map((r: { order_number: string }) => r.order_number).join(', ')}`);
+        fetchOrders();
+        fetchStats();
+      } else if (data.failed_count > 0) {
+        toast.error(`No orders recovered. ${data.failed_count} transaction(s) could not be recovered (quote not found).`);
+      } else {
+        toast.info('No missing orders found — all payments have corresponding orders.');
+      }
+    } catch {
+      toast.error('Failed to run recovery');
+    }
+    setRecoverLoading(false);
+  };
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -187,9 +208,19 @@ export default function Admin() {
                 <span style={{ color: '#ff6b35', marginLeft: '8px', fontSize: '0.9rem' }}>Admin</span>
               </h1>
             </div>
-            <button onClick={() => { fetchOrders(); fetchStats(); }} className="btn-cert-outline-dark" style={{ fontSize: '0.85rem', padding: '8px 16px' }}>
-              <i className="fas fa-sync-alt"></i> Refresh
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                onClick={recoverMissingOrders}
+                disabled={recoverLoading}
+                className="btn-cert-outline-dark"
+                style={{ fontSize: '0.85rem', padding: '8px 16px', background: recoverLoading ? '#4a5568' : '#e53e3e', borderColor: '#e53e3e' }}
+              >
+                {recoverLoading ? <><i className="fas fa-spinner fa-spin"></i> Recovering...</> : <><i className="fas fa-ambulance"></i> Recover Missing Orders</>}
+              </button>
+              <button onClick={() => { fetchOrders(); fetchStats(); }} className="btn-cert-outline-dark" style={{ fontSize: '0.85rem', padding: '8px 16px' }}>
+                <i className="fas fa-sync-alt"></i> Refresh
+              </button>
+            </div>
           </div>
         </div>
       </header>
