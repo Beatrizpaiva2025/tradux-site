@@ -187,7 +187,7 @@ export default function Home() {
               <div className="cert-trust-row">
                 <div className="trust-item"><i className="fas fa-shield-alt"></i><span>100% Acceptance Guarantee</span></div>
                 <div className="trust-item"><i className="fas fa-bolt"></i><span>Same-Day Delivery Available</span></div>
-                <div className="trust-item"><i className="fas fa-users"></i><span>100% Human Translators</span></div>
+                <div className="trust-item"><i className="fas fa-users"></i><span>Human Translators</span></div>
                 <div className="trust-item"><i className="fas fa-lock"></i><span>NDA Protected</span></div>
               </div>
 
