@@ -156,9 +156,19 @@ export default function Review() {
           {/* Translation */}
           <div style={{ marginBottom: '1.5rem' }}>
             <h3 style={{ marginBottom: '0.5rem' }}><i className="fas fa-language"></i> Translation</h3>
-            <pre className="review-text-box" style={{ background: '#f0fff4', border: '1px solid #c6f6d5' }}>
-              {data.proofread_text || 'Translation not available.'}
-            </pre>
+            {data.proofread_text && data.proofread_text.trim().startsWith('<!DOCTYPE') ? (
+              <div style={{ border: '2px solid #c6f6d5', borderRadius: '10px', overflow: 'hidden', background: 'white' }}>
+                <iframe
+                  srcDoc={data.proofread_text}
+                  title="Translation"
+                  style={{ width: '100%', height: '600px', border: 'none' }}
+                />
+              </div>
+            ) : (
+              <pre className="review-text-box" style={{ background: '#f0fff4', border: '1px solid #c6f6d5' }}>
+                {data.proofread_text || 'Translation not available.'}
+              </pre>
+            )}
           </div>
 
           {/* Actions */}

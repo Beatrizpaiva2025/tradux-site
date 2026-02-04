@@ -2915,6 +2915,207 @@ textarea::placeholder {
   width: 100%;
 }
 
+/* ================================================================
+   ADMIN — Test Panel, Pipeline, HTML Preview, Code Editor
+   ================================================================ */
+
+.admin-test-panel {
+  background: white;
+  border: 2px solid #805ad5;
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 15px rgba(128, 90, 213, 0.1);
+}
+
+.admin-test-panel h3 {
+  color: #805ad5;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.admin-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 4px;
+}
+
+.admin-select,
+.admin-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #2d3748;
+  background: white;
+  transition: border-color 0.3s;
+}
+
+.admin-select:focus,
+.admin-input:focus {
+  outline: none;
+  border-color: #805ad5;
+}
+
+.admin-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: #2d3748;
+  resize: vertical;
+  transition: border-color 0.3s;
+}
+
+.admin-textarea:focus {
+  outline: none;
+  border-color: #3182ce;
+}
+
+.admin-text-preview {
+  background: #f7fafc;
+  padding: 1rem;
+  border-radius: 8px;
+  max-height: 200px;
+  overflow: auto;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  border: 1px solid #e2e8f0;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+/* Pipeline info */
+.admin-pipeline-info {
+  background: #f0f9ff;
+  border: 1px solid #bee3f8;
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+}
+
+.admin-pipeline-steps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.pipeline-step {
+  display: inline-block;
+  padding: 3px 10px;
+  background: #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #4a5568;
+  white-space: nowrap;
+}
+
+.pipeline-step.active {
+  background: #805ad5;
+  color: white;
+  animation: pulse-step 1.5s ease-in-out infinite;
+}
+
+.pipeline-step.done {
+  background: #38a169;
+  color: white;
+}
+
+.pipeline-arrow {
+  color: #a0aec0;
+  font-size: 0.8rem;
+}
+
+@keyframes pulse-step {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Progress container */
+.admin-progress-container {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.admin-progress-spinner {
+  margin-bottom: 1rem;
+}
+
+/* Tab buttons */
+.admin-tab-btn {
+  padding: 7px 14px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #4a5568;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-tab-btn:hover {
+  border-color: #3182ce;
+  color: #3182ce;
+}
+
+.admin-tab-btn.active {
+  background: #3182ce;
+  color: white;
+  border-color: #3182ce;
+}
+
+/* HTML Preview */
+.admin-html-preview-container {
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+  background: white;
+}
+
+.admin-html-iframe {
+  width: 100%;
+  height: 600px;
+  border: none;
+  background: white;
+}
+
+/* Code editor */
+.admin-code-editor {
+  width: 100%;
+  min-height: 400px;
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #2d3748;
+  background: #f7fafc;
+  resize: vertical;
+  tab-size: 2;
+}
+
+.admin-code-editor:focus {
+  outline: none;
+  border-color: #3182ce;
+  background: #fff;
+}
+
 @media (max-width: 768px) {
   .admin-stats-grid {
     grid-template-columns: repeat(3, 1fr);
@@ -2931,5 +3132,17 @@ textarea::placeholder {
   }
   .admin-info-grid {
     grid-template-columns: 1fr;
+  }
+  .admin-test-panel {
+    padding: 1rem;
+  }
+  .admin-test-panel > div {
+    grid-template-columns: 1fr !important;
+  }
+  .admin-pipeline-steps {
+    justify-content: center;
+  }
+  .admin-html-iframe {
+    height: 400px;
   }
 }

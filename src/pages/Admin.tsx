@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://tradux-api.onrender.com/api';
@@ -19,13 +19,16 @@ interface Order {
   translation_status: string;
   original_text: string;
   translated_text: string;
+  translation_html: string;
   proofread_text: string;
   ai_corrections: string;
+  document_analysis: string;
   pm_approved: boolean;
   client_approved: boolean;
   correction_notes: string;
   created_at: string;
   document_ids: string[];
+  is_test?: boolean;
 }
 
 interface Stats {
@@ -36,6 +39,14 @@ interface Stats {
   pending_pm_review: number;
   corrections_requested: number;
   total_revenue: number;
+}
+
+interface SampleDoc {
+  key: string;
+  name: string;
+  type: string;
+  source_language: string;
+  preview: string;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -52,7 +63,6 @@ const STATUS_COLORS: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, string> = {
   received: 'Received',
-  ocr_processing: 'OCR Processing',
   translating: 'AI Translating',
   proofreading: 'AI Proofreading',
   pm_review: 'PM Review',
@@ -72,6 +82,25 @@ export default function Admin() {
   const [filterStatus, setFilterStatus] = useState('');
   const [aiCommands, setAiCommands] = useState('');
 
+  // Test order creation
+  const [showTestPanel, setShowTestPanel] = useState(false);
+  const [sampleDocs, setSampleDocs] = useState<SampleDoc[]>([]);
+  const [selectedSample, setSelectedSample] = useState('birth_certificate_br');
+  const [testCustomText, setTestCustomText] = useState('');
+  const [testName, setTestName] = useState('Test Customer');
+  const [testEmail, setTestEmail] = useState('test@example.com');
+
+  // HTML editing
+  const [editingHtml, setEditingHtml] = useState(false);
+  const [editHtmlContent, setEditHtmlContent] = useState('');
+  const [showHtmlPreview, setShowHtmlPreview] = useState(false);
+
+  // Document upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-refresh for in-progress translations
+  const [autoRefresh, setAutoRefresh] = useState(false);
+
   const fetchOrders = useCallback(async () => {
     try {
       const url = filterStatus ? `${API_URL}/admin/orders?status=${filterStatus}` : `${API_URL}/admin/orders`;
@@ -90,17 +119,79 @@ export default function Admin() {
     } catch { /* ignore */ }
   }, []);
 
+  const fetchSampleDocs = useCallback(async () => {
+    try {
+      const resp = await fetch(`${API_URL}/admin/sample-documents`);
+      const data = await resp.json();
+      setSampleDocs(data.documents || []);
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
-    Promise.all([fetchOrders(), fetchStats()]).finally(() => setLoading(false));
-  }, [fetchOrders, fetchStats]);
+    Promise.all([fetchOrders(), fetchStats(), fetchSampleDocs()]).finally(() => setLoading(false));
+  }, [fetchOrders, fetchStats, fetchSampleDocs]);
+
+  // Auto-refresh when translation is in progress
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      if (selectedOrder && ['translating', 'proofreading'].includes(selectedOrder.translation_status)) {
+        loadOrder(selectedOrder.id);
+        fetchOrders();
+      } else {
+        setAutoRefresh(false);
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [autoRefresh, selectedOrder]);
 
   const loadOrder = async (orderId: string) => {
     try {
       const resp = await fetch(`${API_URL}/admin/orders/${orderId}`);
-      setSelectedOrder(await resp.json());
+      const data = await resp.json();
+      setSelectedOrder(data);
+      // Enable auto-refresh if translation is in progress
+      if (['translating', 'proofreading'].includes(data.translation_status)) {
+        setAutoRefresh(true);
+      }
     } catch {
       toast.error('Failed to load order');
     }
+  };
+
+  const createTestOrder = async () => {
+    setActionLoading('create-test');
+    try {
+      const body: Record<string, string> = {
+        document_key: selectedSample,
+        customer_name: testName,
+        customer_email: testEmail,
+      };
+      if (testCustomText.trim()) {
+        body.custom_text = testCustomText;
+      }
+      const resp = await fetch(`${API_URL}/admin/create-test-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        toast.success(`Test order ${data.order_number} created!`);
+        await fetchOrders();
+        await fetchStats();
+        // Auto-select the new order
+        if (data.order_id) {
+          await loadOrder(data.order_id);
+        }
+        setShowTestPanel(false);
+      } else {
+        toast.error(data.detail || 'Failed to create test order');
+      }
+    } catch {
+      toast.error('Failed to create test order');
+    }
+    setActionLoading('');
   };
 
   const startTranslation = async (orderId: string) => {
@@ -113,7 +204,8 @@ export default function Admin() {
       });
       const data = await resp.json();
       if (resp.ok) {
-        toast.success('Translation pipeline started!');
+        toast.success('Translation pipeline started! Auto-refreshing...');
+        setAutoRefresh(true);
         await loadOrder(orderId);
         fetchOrders();
       } else {
@@ -121,6 +213,29 @@ export default function Admin() {
       }
     } catch {
       toast.error('Failed to start translation');
+    }
+    setActionLoading('');
+  };
+
+  const reTranslate = async (orderId: string) => {
+    setActionLoading('re-translate');
+    try {
+      const resp = await fetch(`${API_URL}/admin/re-translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId, ai_commands: aiCommands }),
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        toast.success('Re-translation started!');
+        setAutoRefresh(true);
+        await loadOrder(orderId);
+        fetchOrders();
+      } else {
+        toast.error(data.detail || 'Failed to re-translate');
+      }
+    } catch {
+      toast.error('Failed to re-translate');
     }
     setActionLoading('');
   };
@@ -164,6 +279,80 @@ export default function Admin() {
     setActionLoading('');
   };
 
+  const saveHtmlEdit = async (orderId: string) => {
+    setActionLoading('save-html');
+    try {
+      const resp = await fetch(`${API_URL}/admin/update-translation-html`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId, html: editHtmlContent }),
+      });
+      if (resp.ok) {
+        toast.success('Translation HTML updated!');
+        setEditingHtml(false);
+        await loadOrder(orderId);
+      } else {
+        toast.error('Failed to save HTML');
+      }
+    } catch {
+      toast.error('Failed to save HTML');
+    }
+    setActionLoading('');
+  };
+
+  const uploadDocumentToOrder = async (orderId: string, file: File) => {
+    setActionLoading('upload');
+    try {
+      const formData = new FormData();
+      formData.append('order_id', orderId);
+      formData.append('file', file);
+      const resp = await fetch(`${API_URL}/admin/upload-document-to-order`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        toast.success(`Document uploaded! ${data.word_count} words extracted (${data.extraction_method})`);
+        await loadOrder(orderId);
+      } else {
+        toast.error(data.detail || 'Upload failed');
+      }
+    } catch {
+      toast.error('Failed to upload document');
+    }
+    setActionLoading('');
+  };
+
+  const openHtmlPreview = (html: string) => {
+    const win = window.open('', '_blank', 'width=816,height=1056');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
+  };
+
+  const printHtml = (html: string) => {
+    const win = window.open('', '_blank', 'width=816,height=1056');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      setTimeout(() => win.print(), 500);
+    }
+  };
+
+  const getTranslationHtml = (order: Order): string => {
+    return order.translation_html || order.proofread_text || order.translated_text || '';
+  };
+
+  const parseAnalysis = (order: Order): Record<string, unknown> | null => {
+    try {
+      if (order.document_analysis) {
+        return JSON.parse(order.document_analysis);
+      }
+    } catch { /* ignore */ }
+    return null;
+  };
+
   if (loading) {
     return (
       <div className="admin-page">
@@ -181,20 +370,91 @@ export default function Admin() {
       <header className="admin-header">
         <div className="container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <h1 style={{ margin: 0, fontSize: '1.5rem' }}>
                 <span style={{ color: 'white' }}>TRADUX</span>
                 <span style={{ color: '#ff6b35', marginLeft: '8px', fontSize: '0.9rem' }}>Admin</span>
               </h1>
             </div>
-            <button onClick={() => { fetchOrders(); fetchStats(); }} className="btn-cert-outline-dark" style={{ fontSize: '0.85rem', padding: '8px 16px' }}>
-              <i className="fas fa-sync-alt"></i> Refresh
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => setShowTestPanel(!showTestPanel)}
+                className="btn-cert-outline-dark"
+                style={{ fontSize: '0.85rem', padding: '8px 16px', background: showTestPanel ? 'rgba(255,107,53,0.3)' : 'transparent' }}
+              >
+                <i className="fas fa-flask"></i> Test Order
+              </button>
+              <button
+                onClick={() => { fetchOrders(); fetchStats(); }}
+                className="btn-cert-outline-dark"
+                style={{ fontSize: '0.85rem', padding: '8px 16px' }}
+              >
+                <i className="fas fa-sync-alt"></i> Refresh
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
       <div className="container" style={{ paddingTop: '2rem', paddingBottom: '4rem' }}>
+        {/* Test Order Panel */}
+        {showTestPanel && (
+          <div className="admin-test-panel">
+            <h3><i className="fas fa-flask"></i> Create Test Order</h3>
+            <p style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '1rem' }}>
+              Create a test order with sample document text to test the full translation pipeline.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div>
+                <label className="admin-label">Sample Document</label>
+                <select
+                  value={selectedSample}
+                  onChange={(e) => setSelectedSample(e.target.value)}
+                  className="admin-select"
+                >
+                  {sampleDocs.map((doc) => (
+                    <option key={doc.key} value={doc.key}>
+                      {doc.name} ({doc.type})
+                    </option>
+                  ))}
+                  <option value="custom">Custom Text</option>
+                </select>
+              </div>
+              <div>
+                <label className="admin-label">Customer Name</label>
+                <input
+                  type="text"
+                  value={testName}
+                  onChange={(e) => setTestName(e.target.value)}
+                  className="admin-input"
+                />
+              </div>
+            </div>
+            {selectedSample === 'custom' && (
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="admin-label">Custom Document Text</label>
+                <textarea
+                  value={testCustomText}
+                  onChange={(e) => setTestCustomText(e.target.value)}
+                  placeholder="Paste the document text here..."
+                  rows={6}
+                  className="admin-textarea"
+                />
+              </div>
+            )}
+            <button
+              onClick={createTestOrder}
+              disabled={actionLoading === 'create-test'}
+              className="btn-cert-primary"
+              style={{ width: '100%' }}
+            >
+              {actionLoading === 'create-test'
+                ? <><i className="fas fa-spinner fa-spin"></i> Creating...</>
+                : <><i className="fas fa-plus"></i> Create Test Order</>}
+            </button>
+          </div>
+        )}
+
         {/* Stats */}
         {stats && (
           <div className="admin-stats-grid">
@@ -227,7 +487,7 @@ export default function Admin() {
 
         {/* Filters */}
         <div style={{ margin: '1.5rem 0', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          {['', 'received', 'translating', 'pm_review', 'client_review', 'corrections', 'completed'].map((s) => (
+          {['', 'received', 'translating', 'pm_review', 'client_review', 'corrections', 'approved', 'completed'].map((s) => (
             <button
               key={s}
               onClick={() => { setFilterStatus(s); }}
@@ -250,7 +510,7 @@ export default function Admin() {
                 onClick={() => loadOrder(order.id)}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <strong>{order.order_number}</strong>
+                  <strong>{order.order_number} {order.is_test ? <span style={{ fontSize: '0.7rem', color: '#805ad5' }}>(TEST)</span> : ''}</strong>
                   <span
                     className="admin-status-badge"
                     style={{ background: STATUS_COLORS[order.translation_status] || '#718096' }}
@@ -259,7 +519,7 @@ export default function Admin() {
                   </span>
                 </div>
                 <div style={{ fontSize: '0.85rem', color: '#4a5568' }}>
-                  <p style={{ margin: '2px 0' }}>{order.customer_name} — {order.source_language} → {order.target_language}</p>
+                  <p style={{ margin: '2px 0' }}>{order.customer_name} — {order.source_language} &rarr; {order.target_language}</p>
                   <p style={{ margin: '2px 0' }}>{order.service_tier?.charAt(0).toUpperCase() + order.service_tier?.slice(1)} | ${order.total_price?.toFixed(2)} | {order.page_count} pg</p>
                 </div>
               </div>
@@ -272,11 +532,15 @@ export default function Admin() {
               <div style={{ textAlign: 'center', padding: '3rem', color: '#a0aec0' }}>
                 <i className="fas fa-inbox" style={{ fontSize: '3rem', marginBottom: '1rem', display: 'block' }}></i>
                 <p>Select an order to view details</p>
+                <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>Or create a test order to get started</p>
               </div>
             ) : (
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <h2 style={{ margin: 0 }}>{selectedOrder.order_number}</h2>
+                  <h2 style={{ margin: 0 }}>
+                    {selectedOrder.order_number}
+                    {selectedOrder.is_test && <span style={{ fontSize: '0.75rem', color: '#805ad5', marginLeft: '8px' }}>TEST</span>}
+                  </h2>
                   <span
                     className="admin-status-badge"
                     style={{ background: STATUS_COLORS[selectedOrder.translation_status] || '#718096', fontSize: '0.9rem', padding: '6px 16px' }}
@@ -291,7 +555,7 @@ export default function Admin() {
                   <div className="admin-info-grid">
                     <div><strong>Customer:</strong> {selectedOrder.customer_name}</div>
                     <div><strong>Email:</strong> {selectedOrder.customer_email}</div>
-                    <div><strong>Languages:</strong> {selectedOrder.source_language} → {selectedOrder.target_language}</div>
+                    <div><strong>Languages:</strong> {selectedOrder.source_language} &rarr; {selectedOrder.target_language}</div>
                     <div><strong>Document:</strong> {selectedOrder.document_type || 'N/A'}</div>
                     <div><strong>Tier:</strong> {selectedOrder.service_tier}</div>
                     <div><strong>Cert:</strong> {selectedOrder.cert_type}</div>
@@ -300,108 +564,394 @@ export default function Admin() {
                   </div>
                 </div>
 
-                {/* Actions based on status */}
+                {/* Document Analysis (if available) */}
+                {selectedOrder.document_analysis && (() => {
+                  const analysis = parseAnalysis(selectedOrder);
+                  if (!analysis) return null;
+                  return (
+                    <div className="admin-detail-section" style={{ background: '#f0f9ff' }}>
+                      <h3><i className="fas fa-search" style={{ color: '#3182ce' }}></i> Document Analysis (Phase 1)</h3>
+                      <div className="admin-info-grid" style={{ fontSize: '0.85rem' }}>
+                        <div><strong>Type:</strong> {String(analysis.document_type || 'N/A')}</div>
+                        <div><strong>Language:</strong> {String(analysis.source_language || 'N/A')}</div>
+                        <div><strong>Country:</strong> {String(analysis.source_country || 'N/A')}</div>
+                        <div><strong>Financial:</strong> {analysis.is_financial ? 'Yes' : 'No'}</div>
+                        {analysis.detected_elements && (
+                          <div style={{ gridColumn: '1 / -1' }}>
+                            <strong>Elements:</strong> {Array.isArray(analysis.detected_elements) ? (analysis.detected_elements as string[]).join(', ') : String(analysis.detected_elements)}
+                          </div>
+                        )}
+                        {analysis.summary && (
+                          <div style={{ gridColumn: '1 / -1' }}>
+                            <strong>Summary:</strong> {String(analysis.summary)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* === STATUS-SPECIFIC SECTIONS === */}
+
+                {/* RECEIVED — Start Translation */}
                 {selectedOrder.translation_status === 'received' && (
                   <div className="admin-detail-section">
-                    <h3>Start Translation</h3>
-                    <p style={{ fontSize: '0.9rem', color: '#718096', marginBottom: '1rem' }}>
-                      Click the button below to start the AI translation pipeline. The system will translate the document and proofread it automatically.
-                    </p>
+                    <h3><i className="fas fa-play" style={{ color: '#3182ce' }}></i> Start Translation Pipeline</h3>
+
+                    {/* Source text preview */}
+                    {selectedOrder.original_text ? (
+                      <div style={{ marginBottom: '1rem' }}>
+                        <label style={{ fontWeight: 600, display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
+                          Source Text ({selectedOrder.original_text.length} chars):
+                        </label>
+                        <pre className="admin-text-preview">
+                          {selectedOrder.original_text.substring(0, 500)}
+                          {selectedOrder.original_text.length > 500 ? '...' : ''}
+                        </pre>
+                      </div>
+                    ) : (
+                      <div style={{ background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: '8px', padding: '1rem', marginBottom: '1rem' }}>
+                        <p style={{ color: '#92400e', fontSize: '0.9rem' }}>
+                          <i className="fas fa-exclamation-triangle"></i> No source text found. Upload a document or the order needs documents attached.
+                        </p>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          style={{ display: 'none' }}
+                          accept=".pdf,.jpg,.jpeg,.png,.docx,.tiff"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file && selectedOrder) {
+                              uploadDocumentToOrder(selectedOrder.id, file);
+                            }
+                          }}
+                        />
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={actionLoading === 'upload'}
+                          className="btn-cert-primary"
+                          style={{ marginTop: '0.5rem', fontSize: '0.85rem', padding: '8px 16px' }}
+                        >
+                          <i className="fas fa-upload"></i> Upload Document
+                        </button>
+                      </div>
+                    )}
+
                     <textarea
-                      placeholder="Optional: Add specific AI instructions (e.g., 'Use formal language', 'Preserve legal terminology')"
+                      placeholder="Optional: Add specific AI instructions (e.g., 'Use formal language', 'This is a Brazilian birth certificate from Sao Paulo')"
                       value={aiCommands}
                       onChange={(e) => setAiCommands(e.target.value)}
                       rows={3}
-                      style={{ width: '100%', marginBottom: '1rem', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}
+                      className="admin-textarea"
+                      style={{ marginBottom: '1rem' }}
                     />
+
+                    <div className="admin-pipeline-info">
+                      <strong>Pipeline will run:</strong>
+                      <div className="admin-pipeline-steps">
+                        <span className="pipeline-step">1. Analyze</span>
+                        <span className="pipeline-arrow">&rarr;</span>
+                        <span className="pipeline-step">2. Glossary</span>
+                        <span className="pipeline-arrow">&rarr;</span>
+                        <span className="pipeline-step">3. Translate (HTML)</span>
+                        <span className="pipeline-arrow">&rarr;</span>
+                        <span className="pipeline-step">4. Self-Review</span>
+                        <span className="pipeline-arrow">&rarr;</span>
+                        <span className="pipeline-step">5. Proofread</span>
+                      </div>
+                    </div>
+
                     <button
                       onClick={() => startTranslation(selectedOrder.id)}
-                      disabled={actionLoading === 'start'}
+                      disabled={actionLoading === 'start' || !selectedOrder.original_text}
                       className="btn-cert-primary"
                       style={{ width: '100%' }}
                     >
-                      {actionLoading === 'start' ? <><i className="fas fa-spinner fa-spin"></i> Starting...</> : <><i className="fas fa-play"></i> Start AI Translation</>}
+                      {actionLoading === 'start'
+                        ? <><i className="fas fa-spinner fa-spin"></i> Starting Pipeline...</>
+                        : <><i className="fas fa-play"></i> Start Full Translation Pipeline</>}
                     </button>
                   </div>
                 )}
 
+                {/* TRANSLATING — In Progress */}
                 {selectedOrder.translation_status === 'translating' && (
                   <div className="admin-detail-section">
-                    <div style={{ textAlign: 'center', padding: '2rem' }}>
-                      <i className="fas fa-cog fa-spin" style={{ fontSize: '2rem', color: '#805ad5', marginBottom: '1rem', display: 'block' }}></i>
-                      <p style={{ color: '#805ad5', fontWeight: 600 }}>AI is translating the document...</p>
-                      <p style={{ fontSize: '0.85rem', color: '#718096' }}>This may take a few moments. Refresh to check status.</p>
+                    <div className="admin-progress-container">
+                      <div className="admin-progress-spinner">
+                        <i className="fas fa-cog fa-spin" style={{ fontSize: '2.5rem', color: '#805ad5' }}></i>
+                      </div>
+                      <h3 style={{ color: '#805ad5', marginBottom: '0.5rem' }}>AI Translation in Progress</h3>
+                      <p style={{ color: '#718096', fontSize: '0.9rem' }}>
+                        Running Phases 1-4: Document Analysis, Glossary Building, Line-by-Line Translation to HTML, Self-Review
+                      </p>
+                      <div className="admin-pipeline-steps" style={{ marginTop: '1rem' }}>
+                        <span className="pipeline-step active">1. Analyze</span>
+                        <span className="pipeline-arrow">&rarr;</span>
+                        <span className="pipeline-step active">2-3. Translate</span>
+                        <span className="pipeline-arrow">&rarr;</span>
+                        <span className="pipeline-step">4. Self-Review</span>
+                        <span className="pipeline-arrow">&rarr;</span>
+                        <span className="pipeline-step">5. Proofread</span>
+                      </div>
+                      <p style={{ fontSize: '0.8rem', color: '#a0aec0', marginTop: '1rem' }}>
+                        <i className="fas fa-sync-alt fa-spin"></i> Auto-refreshing every 5 seconds...
+                      </p>
                     </div>
                   </div>
                 )}
 
+                {/* PROOFREADING — In Progress */}
                 {selectedOrder.translation_status === 'proofreading' && (
                   <div className="admin-detail-section">
-                    <div style={{ textAlign: 'center', padding: '2rem' }}>
-                      <i className="fas fa-spell-check fa-pulse" style={{ fontSize: '2rem', color: '#d69e2e', marginBottom: '1rem', display: 'block' }}></i>
-                      <p style={{ color: '#d69e2e', fontWeight: 600 }}>AI is proofreading the translation...</p>
+                    <div className="admin-progress-container">
+                      <div className="admin-progress-spinner">
+                        <i className="fas fa-spell-check fa-pulse" style={{ fontSize: '2.5rem', color: '#d69e2e' }}></i>
+                      </div>
+                      <h3 style={{ color: '#d69e2e', marginBottom: '0.5rem' }}>AI Proofreading in Progress</h3>
+                      <p style={{ color: '#718096', fontSize: '0.9rem' }}>
+                        Phase 5: Checking accuracy, completeness, format conversions, terminology consistency...
+                      </p>
+                      <div className="admin-pipeline-steps" style={{ marginTop: '1rem' }}>
+                        <span className="pipeline-step done">1. Analyze</span>
+                        <span className="pipeline-arrow">&rarr;</span>
+                        <span className="pipeline-step done">2-3. Translate</span>
+                        <span className="pipeline-arrow">&rarr;</span>
+                        <span className="pipeline-step done">4. Self-Review</span>
+                        <span className="pipeline-arrow">&rarr;</span>
+                        <span className="pipeline-step active">5. Proofread</span>
+                      </div>
+                      <p style={{ fontSize: '0.8rem', color: '#a0aec0', marginTop: '1rem' }}>
+                        <i className="fas fa-sync-alt fa-spin"></i> Auto-refreshing every 5 seconds...
+                      </p>
                     </div>
                   </div>
                 )}
 
+                {/* TRANSLATION ERROR */}
+                {selectedOrder.translation_status === 'translation_error' && (
+                  <div className="admin-detail-section" style={{ background: '#fff5f5', borderColor: '#fed7d7' }}>
+                    <h3 style={{ color: '#c53030' }}><i className="fas fa-exclamation-triangle"></i> Translation Error</h3>
+                    <p style={{ color: '#742a2a', fontSize: '0.9rem', marginBottom: '1rem' }}>
+                      {(selectedOrder as unknown as Record<string, string>).error_message || 'An error occurred during translation.'}
+                    </p>
+                    <textarea
+                      placeholder="Optional: Add or adjust AI instructions for retry"
+                      value={aiCommands}
+                      onChange={(e) => setAiCommands(e.target.value)}
+                      rows={2}
+                      className="admin-textarea"
+                      style={{ marginBottom: '0.5rem' }}
+                    />
+                    <button
+                      onClick={() => reTranslate(selectedOrder.id)}
+                      disabled={actionLoading === 're-translate'}
+                      className="btn-cert-primary"
+                      style={{ width: '100%' }}
+                    >
+                      {actionLoading === 're-translate'
+                        ? <><i className="fas fa-spinner fa-spin"></i> Retrying...</>
+                        : <><i className="fas fa-redo"></i> Retry Translation</>}
+                    </button>
+                  </div>
+                )}
+
+                {/* PM REVIEW / CORRECTIONS — Review + Edit HTML */}
                 {(selectedOrder.translation_status === 'pm_review' || selectedOrder.translation_status === 'corrections') && (
                   <div className="admin-detail-section">
-                    <h3>Translation Review (PM)</h3>
+                    <h3><i className="fas fa-eye" style={{ color: '#dd6b20' }}></i> Translation Review (PM)</h3>
 
+                    {/* Client corrections notice */}
                     {selectedOrder.translation_status === 'corrections' && selectedOrder.correction_notes && (
                       <div style={{ background: '#fff5f5', border: '1px solid #fed7d7', borderRadius: '8px', padding: '1rem', marginBottom: '1rem' }}>
-                        <strong style={{ color: '#e53e3e' }}><i className="fas fa-exclamation-triangle"></i> Client Corrections:</strong>
+                        <strong style={{ color: '#e53e3e' }}><i className="fas fa-exclamation-triangle"></i> Client Corrections Requested:</strong>
                         <p style={{ margin: '0.5rem 0 0', color: '#742a2a' }}>{selectedOrder.correction_notes}</p>
                       </div>
                     )}
 
+                    {/* AI corrections */}
                     {selectedOrder.ai_corrections && (
                       <div style={{ background: '#fffff0', border: '1px solid #fefcbf', borderRadius: '8px', padding: '1rem', marginBottom: '1rem' }}>
-                        <strong style={{ color: '#975a16' }}><i className="fas fa-robot"></i> AI Corrections:</strong>
-                        <p style={{ margin: '0.5rem 0 0', color: '#744210', fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>{selectedOrder.ai_corrections}</p>
+                        <strong style={{ color: '#975a16' }}><i className="fas fa-robot"></i> AI Proofreading Corrections:</strong>
+                        <p style={{ margin: '0.5rem 0 0', color: '#744210', fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>{selectedOrder.ai_corrections}</p>
                       </div>
                     )}
 
-                    <div style={{ marginBottom: '1rem' }}>
-                      <label style={{ fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>Original Text:</label>
-                      <pre style={{ background: '#f7fafc', padding: '1rem', borderRadius: '8px', maxHeight: '200px', overflow: 'auto', fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>
-                        {selectedOrder.original_text || 'No text extracted'}
-                      </pre>
+                    {/* HTML Preview / Edit Toggle */}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => { setShowHtmlPreview(!showHtmlPreview); setEditingHtml(false); }}
+                        className={`admin-tab-btn ${showHtmlPreview && !editingHtml ? 'active' : ''}`}
+                      >
+                        <i className="fas fa-eye"></i> Preview HTML
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingHtml(!editingHtml);
+                          setShowHtmlPreview(false);
+                          if (!editingHtml) {
+                            setEditHtmlContent(getTranslationHtml(selectedOrder));
+                          }
+                        }}
+                        className={`admin-tab-btn ${editingHtml ? 'active' : ''}`}
+                      >
+                        <i className="fas fa-code"></i> Edit HTML
+                      </button>
+                      <button
+                        onClick={() => openHtmlPreview(getTranslationHtml(selectedOrder))}
+                        className="admin-tab-btn"
+                      >
+                        <i className="fas fa-external-link-alt"></i> Open in New Tab
+                      </button>
+                      <button
+                        onClick={() => printHtml(getTranslationHtml(selectedOrder))}
+                        className="admin-tab-btn"
+                      >
+                        <i className="fas fa-print"></i> Print / PDF
+                      </button>
                     </div>
 
-                    <div style={{ marginBottom: '1rem' }}>
-                      <label style={{ fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>Proofread Translation:</label>
-                      <pre style={{ background: '#f0fff4', padding: '1rem', borderRadius: '8px', maxHeight: '300px', overflow: 'auto', fontSize: '0.85rem', whiteSpace: 'pre-wrap', border: '1px solid #c6f6d5' }}>
-                        {selectedOrder.proofread_text || selectedOrder.translated_text || 'Translation not available'}
-                      </pre>
-                    </div>
+                    {/* HTML Preview (iframe) */}
+                    {showHtmlPreview && !editingHtml && (
+                      <div className="admin-html-preview-container">
+                        <iframe
+                          srcDoc={getTranslationHtml(selectedOrder)}
+                          title="Translation Preview"
+                          className="admin-html-iframe"
+                        />
+                      </div>
+                    )}
 
+                    {/* HTML Editor */}
+                    {editingHtml && (
+                      <div style={{ marginBottom: '1rem' }}>
+                        <textarea
+                          value={editHtmlContent}
+                          onChange={(e) => setEditHtmlContent(e.target.value)}
+                          rows={20}
+                          className="admin-code-editor"
+                        />
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                          <button
+                            onClick={() => saveHtmlEdit(selectedOrder.id)}
+                            disabled={actionLoading === 'save-html'}
+                            className="btn-cert-primary"
+                            style={{ flex: 1 }}
+                          >
+                            {actionLoading === 'save-html'
+                              ? <><i className="fas fa-spinner fa-spin"></i> Saving...</>
+                              : <><i className="fas fa-save"></i> Save Changes</>}
+                          </button>
+                          <button
+                            onClick={() => { setEditingHtml(false); }}
+                            className="admin-tab-btn"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Original text (collapsible) */}
+                    {!showHtmlPreview && !editingHtml && (
+                      <>
+                        <details style={{ marginBottom: '1rem' }}>
+                          <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem', color: '#4a5568' }}>
+                            <i className="fas fa-file-alt"></i> Original Text
+                          </summary>
+                          <pre className="admin-text-preview" style={{ marginTop: '0.5rem' }}>
+                            {selectedOrder.original_text || 'No text extracted'}
+                          </pre>
+                        </details>
+                        <details open style={{ marginBottom: '1rem' }}>
+                          <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem', color: '#2f855a' }}>
+                            <i className="fas fa-language"></i> Translation (HTML)
+                          </summary>
+                          <pre className="admin-text-preview" style={{ marginTop: '0.5rem', background: '#f0fff4', border: '1px solid #c6f6d5', maxHeight: '400px' }}>
+                            {getTranslationHtml(selectedOrder).substring(0, 3000) || 'Translation not available'}
+                            {getTranslationHtml(selectedOrder).length > 3000 ? '\n\n... [truncated — use Preview or Edit to see full HTML]' : ''}
+                          </pre>
+                        </details>
+                      </>
+                    )}
+
+                    {/* Re-translate option */}
+                    <details style={{ marginBottom: '1rem' }}>
+                      <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem', color: '#805ad5' }}>
+                        <i className="fas fa-redo"></i> Re-translate with different instructions
+                      </summary>
+                      <div style={{ marginTop: '0.5rem' }}>
+                        <textarea
+                          placeholder="Add specific AI instructions for the re-translation..."
+                          value={aiCommands}
+                          onChange={(e) => setAiCommands(e.target.value)}
+                          rows={2}
+                          className="admin-textarea"
+                          style={{ marginBottom: '0.5rem' }}
+                        />
+                        <button
+                          onClick={() => reTranslate(selectedOrder.id)}
+                          disabled={actionLoading === 're-translate'}
+                          className="btn-cert-primary"
+                          style={{ width: '100%', background: 'linear-gradient(135deg, #805ad5, #6b46c1)' }}
+                        >
+                          {actionLoading === 're-translate'
+                            ? <><i className="fas fa-spinner fa-spin"></i> Re-translating...</>
+                            : <><i className="fas fa-redo"></i> Re-translate</>}
+                        </button>
+                      </div>
+                    </details>
+
+                    {/* Approve button */}
                     <button
                       onClick={() => approvePM(selectedOrder.id)}
                       disabled={actionLoading === 'approve'}
                       className="btn-cert-primary"
                       style={{ width: '100%' }}
                     >
-                      {actionLoading === 'approve' ? <><i className="fas fa-spinner fa-spin"></i> Sending...</> : <><i className="fas fa-paper-plane"></i> Approve & Send to Client</>}
+                      {actionLoading === 'approve'
+                        ? <><i className="fas fa-spinner fa-spin"></i> Sending to Client...</>
+                        : <><i className="fas fa-paper-plane"></i> Approve &amp; Send to Client for Review</>}
                     </button>
                   </div>
                 )}
 
+                {/* CLIENT REVIEW — Waiting */}
                 {selectedOrder.translation_status === 'client_review' && (
                   <div className="admin-detail-section">
-                    <div style={{ textAlign: 'center', padding: '2rem' }}>
-                      <i className="fas fa-user-clock" style={{ fontSize: '2rem', color: '#38a169', marginBottom: '1rem', display: 'block' }}></i>
-                      <p style={{ color: '#38a169', fontWeight: 600 }}>Waiting for client review...</p>
-                      <p style={{ fontSize: '0.85rem', color: '#718096' }}>The client has received the translation and is reviewing it.</p>
+                    <div className="admin-progress-container">
+                      <i className="fas fa-user-clock" style={{ fontSize: '2.5rem', color: '#38a169', marginBottom: '1rem', display: 'block' }}></i>
+                      <h3 style={{ color: '#38a169', marginBottom: '0.5rem' }}>Waiting for Client Review</h3>
+                      <p style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '1rem' }}>
+                        The client ({selectedOrder.customer_email}) has received the translation and is reviewing it.
+                      </p>
+                    </div>
+                    {/* Preview buttons */}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      <button onClick={() => openHtmlPreview(getTranslationHtml(selectedOrder))} className="admin-tab-btn" style={{ flex: 1 }}>
+                        <i className="fas fa-eye"></i> Preview Translation
+                      </button>
+                      <button onClick={() => printHtml(getTranslationHtml(selectedOrder))} className="admin-tab-btn" style={{ flex: 1 }}>
+                        <i className="fas fa-print"></i> Print / PDF
+                      </button>
                     </div>
                   </div>
                 )}
 
+                {/* APPROVED — Finalize */}
                 {selectedOrder.translation_status === 'approved' && (
                   <div className="admin-detail-section">
                     <div style={{ textAlign: 'center', padding: '1rem', marginBottom: '1rem' }}>
-                      <i className="fas fa-check-circle" style={{ fontSize: '2rem', color: '#38a169', display: 'block', marginBottom: '0.5rem' }}></i>
-                      <p style={{ color: '#38a169', fontWeight: 600 }}>Client approved the translation!</p>
+                      <i className="fas fa-check-circle" style={{ fontSize: '2.5rem', color: '#38a169', display: 'block', marginBottom: '0.5rem' }}></i>
+                      <h3 style={{ color: '#38a169' }}>Client Approved the Translation!</h3>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                      <button onClick={() => openHtmlPreview(getTranslationHtml(selectedOrder))} className="admin-tab-btn" style={{ flex: 1 }}>
+                        <i className="fas fa-eye"></i> Preview
+                      </button>
+                      <button onClick={() => printHtml(getTranslationHtml(selectedOrder))} className="admin-tab-btn" style={{ flex: 1 }}>
+                        <i className="fas fa-print"></i> Print / PDF
+                      </button>
                     </div>
                     <button
                       onClick={() => markComplete(selectedOrder.id)}
@@ -409,17 +959,30 @@ export default function Admin() {
                       className="btn-cert-primary"
                       style={{ width: '100%', background: 'linear-gradient(135deg, #38a169, #2f855a)' }}
                     >
-                      {actionLoading === 'complete' ? <><i className="fas fa-spinner fa-spin"></i> Completing...</> : <><i className="fas fa-check-double"></i> Finalize & Deliver</>}
+                      {actionLoading === 'complete'
+                        ? <><i className="fas fa-spinner fa-spin"></i> Completing...</>
+                        : <><i className="fas fa-check-double"></i> Finalize &amp; Deliver</>}
                     </button>
                   </div>
                 )}
 
+                {/* COMPLETED */}
                 {selectedOrder.translation_status === 'completed' && (
                   <div className="admin-detail-section">
-                    <div style={{ textAlign: 'center', padding: '2rem' }}>
-                      <i className="fas fa-trophy" style={{ fontSize: '2rem', color: '#d69e2e', marginBottom: '1rem', display: 'block' }}></i>
-                      <p style={{ color: '#276749', fontWeight: 600 }}>Order Completed</p>
+                    <div style={{ textAlign: 'center', padding: '1.5rem' }}>
+                      <i className="fas fa-trophy" style={{ fontSize: '2.5rem', color: '#d69e2e', marginBottom: '1rem', display: 'block' }}></i>
+                      <h3 style={{ color: '#276749' }}>Order Completed</h3>
                     </div>
+                    {getTranslationHtml(selectedOrder) && (
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button onClick={() => openHtmlPreview(getTranslationHtml(selectedOrder))} className="admin-tab-btn" style={{ flex: 1 }}>
+                          <i className="fas fa-eye"></i> View Translation
+                        </button>
+                        <button onClick={() => printHtml(getTranslationHtml(selectedOrder))} className="admin-tab-btn" style={{ flex: 1 }}>
+                          <i className="fas fa-print"></i> Print / PDF
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </>
