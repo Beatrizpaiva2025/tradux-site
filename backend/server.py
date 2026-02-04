@@ -1201,6 +1201,132 @@ async def mark_complete(req: AdminActionRequest):
 
 
 # ---------------------------------------------------------------------------
+# PM Upload External Translation
+# ---------------------------------------------------------------------------
+
+@api.post("/admin/upload-pm-translation")
+async def upload_pm_translation(order_id: str = Form(...), file: UploadFile = File(...)):
+    """PM uploads a final external translation file for an order"""
+    order = await db.orders.find_one({"id": order_id})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    file_bytes = await file.read()
+    if len(file_bytes) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 20MB)")
+
+    # Store file in GridFS
+    gridfs_id = await store_file_gridfs(
+        file_bytes, file.filename, file.content_type,
+        metadata={"order_id": order_id, "type": "pm_upload_translation"}
+    )
+
+    # Update order with PM upload info and set status to READY
+    await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "translation_status": "pm_upload_ready",
+            "pm_upload_file_id": gridfs_id,
+            "pm_upload_filename": file.filename,
+            "pm_upload_content_type": file.content_type,
+            "pm_upload_file_size": len(file_bytes),
+            "pm_uploaded_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+        }}
+    )
+
+    # Notify admin that PM uploaded a translation
+    await email_service.send(
+        ADMIN_EMAIL,
+        f"Translation Uploaded (READY) — {order.get('order_number', '')}",
+        email_service._base_template(f"""
+            <h2 style="color:#38a169;">Translation Ready for Review</h2>
+            <p>The PM has uploaded the final translation for order <strong>{order.get('order_number', '')}</strong>.</p>
+            <div class="info-box">
+                <p><strong>Customer:</strong> {order.get('customer_name', '')}</p>
+                <p><strong>Languages:</strong> {order.get('source_language', '')} → {order.get('target_language', '')}</p>
+                <p><strong>File:</strong> {file.filename}</p>
+            </div>
+            <p style="text-align:center;">
+                <a href="https://tradux.online/admin" class="btn">Open Admin Dashboard</a>
+            </p>
+        """),
+    )
+
+    return {
+        "status": "uploaded",
+        "order_id": order_id,
+        "filename": file.filename,
+        "message": "Translation uploaded and marked as READY for admin",
+    }
+
+
+@api.post("/admin/accept-pm-upload")
+async def accept_pm_upload(req: AdminActionRequest):
+    """Admin accepts PM uploaded translation and sends to client — sets status to FINAL"""
+    order = await db.orders.find_one({"id": req.order_id})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if not order.get("pm_upload_file_id"):
+        raise HTTPException(status_code=400, detail="No uploaded translation found")
+
+    # Set status to FINAL regardless of current phase
+    await db.orders.update_one(
+        {"id": req.order_id},
+        {"$set": {
+            "translation_status": "final",
+            "pm_approved": True,
+            "client_approved": True,
+            "completed_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+        }}
+    )
+
+    # Send delivery email to client
+    customer_email = order.get("customer_email")
+    if customer_email:
+        # Retrieve the uploaded file to attach
+        try:
+            file_bytes, filename, content_type = await retrieve_file_gridfs(order["pm_upload_file_id"])
+            await email_service.send_with_attachments(
+                customer_email,
+                f"Your Certified Translation — {order.get('order_number', '')} | TRADUX",
+                email_service.client_approved(order),
+                [{"filename": order.get("pm_upload_filename", filename), "content": file_bytes}],
+            )
+        except Exception as e:
+            logger.error(f"Failed to send translation with attachment: {e}")
+            # Fallback: send without attachment
+            await email_service.send(
+                customer_email,
+                f"Your Certified Translation — {order.get('order_number', '')} | TRADUX",
+                email_service.client_approved(order),
+            )
+
+    return {"status": "final", "order_number": order.get("order_number"), "message": "Translation sent to client. Status set to FINAL."}
+
+
+@api.get("/admin/orders/{order_id}/pm-translation-download")
+async def download_pm_translation(order_id: str):
+    """Download the PM uploaded translation file"""
+    order = await db.orders.find_one({"id": order_id})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    file_id = order.get("pm_upload_file_id")
+    if not file_id:
+        raise HTTPException(status_code=404, detail="No uploaded translation found")
+
+    file_bytes, filename, content_type = await retrieve_file_gridfs(file_id)
+    return StreamingResponse(
+        io.BytesIO(file_bytes),
+        media_type=content_type,
+        headers={"Content-Disposition": f'attachment; filename="{order.get("pm_upload_filename", filename)}"'},
+    )
+
+
+# ---------------------------------------------------------------------------
 # Client Review Endpoints
 # ---------------------------------------------------------------------------
 
@@ -1305,8 +1431,8 @@ async def submit_review(order_id: str, token: str = Query(...), review: Translat
 async def admin_stats():
     total = await db.orders.count_documents({})
     paid = await db.orders.count_documents({"payment_status": "paid"})
-    completed = await db.orders.count_documents({"translation_status": "completed"})
-    in_progress = await db.orders.count_documents({"translation_status": {"$in": ["translating", "proofreading", "pm_review", "client_review"]}})
+    completed = await db.orders.count_documents({"translation_status": {"$in": ["completed", "final"]}})
+    in_progress = await db.orders.count_documents({"translation_status": {"$in": ["translating", "proofreading", "pm_review", "client_review", "pm_upload_ready"]}})
     pending_review = await db.orders.count_documents({"translation_status": "pm_review"})
     corrections = await db.orders.count_documents({"translation_status": "corrections"})
 
