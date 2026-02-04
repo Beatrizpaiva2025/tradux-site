@@ -559,7 +559,7 @@ export default function Admin() {
                     {/* Show uploaded file info if already uploaded */}
                     {selectedOrder.pm_upload_filename && (
                       <div className="admin-detail-section" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <i className="fas fa-file-alt" style={{ fontSize: '1.5rem', color: '#10b981' }}></i>
                           <div>
                             <p style={{ margin: 0, fontWeight: 600, color: '#065f46' }}>Uploaded Translation</p>
@@ -573,22 +573,6 @@ export default function Admin() {
                             </p>
                           </div>
                         </div>
-                        <a
-                          href={`${API_URL}/admin/orders/${selectedOrder.id}/pm-translation-download`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            color: '#3182ce',
-                            fontSize: '0.85rem',
-                            textDecoration: 'none',
-                            fontWeight: 500,
-                          }}
-                        >
-                          <i className="fas fa-download"></i> Download file
-                        </a>
                       </div>
                     )}
 
