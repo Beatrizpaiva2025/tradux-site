@@ -98,7 +98,7 @@ export default function Admin() {
   const [selectedSample, setSelectedSample] = useState('birth_certificate_br');
   const [testCustomText, setTestCustomText] = useState('');
   const [testName, setTestName] = useState('Test Customer');
-  const [testEmail, setTestEmail] = useState('test@example.com');
+  const [testEmail] = useState('test@example.com');
 
   // HTML editing
   const [editingHtml, setEditingHtml] = useState(false);
@@ -160,6 +160,7 @@ export default function Admin() {
       const resp = await fetch(`${API_URL}/admin/orders/${orderId}`);
       const data = await resp.json();
       setSelectedOrder(data);
+      // Enable auto-refresh if translation is in progress
       if (['translating', 'proofreading'].includes(data.translation_status)) {
         setAutoRefresh(true);
       }
@@ -189,6 +190,7 @@ export default function Admin() {
         toast.success(`Test order ${data.order_number} created!`);
         await fetchOrders();
         await fetchStats();
+        // Auto-select the new order
         if (data.order_id) {
           await loadOrder(data.order_id);
         }
@@ -642,16 +644,16 @@ export default function Admin() {
                         <div><strong>Language:</strong> {String(analysis.source_language || 'N/A')}</div>
                         <div><strong>Country:</strong> {String(analysis.source_country || 'N/A')}</div>
                         <div><strong>Financial:</strong> {analysis.is_financial ? 'Yes' : 'No'}</div>
-                        {analysis.detected_elements && (
+                        {analysis.detected_elements ? (
                           <div style={{ gridColumn: '1 / -1' }}>
                             <strong>Elements:</strong> {Array.isArray(analysis.detected_elements) ? (analysis.detected_elements as string[]).join(', ') : String(analysis.detected_elements)}
                           </div>
-                        )}
-                        {analysis.summary && (
+                        ) : null}
+                        {analysis.summary ? (
                           <div style={{ gridColumn: '1 / -1' }}>
                             <strong>Summary:</strong> {String(analysis.summary)}
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   );
@@ -703,6 +705,7 @@ export default function Admin() {
                       <div className="admin-detail-section">
                         <h3><i className="fas fa-play" style={{ color: '#3182ce' }}></i> Start Translation Pipeline</h3>
 
+                        {/* Source text preview */}
                         {selectedOrder.original_text ? (
                           <div style={{ marginBottom: '1rem' }}>
                             <label style={{ fontWeight: 600, display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
@@ -778,7 +781,7 @@ export default function Admin() {
                       </div>
                     )}
 
-                    {/* TRANSLATING */}
+                    {/* TRANSLATING — In Progress */}
                     {selectedOrder.translation_status === 'translating' && (
                       <div className="admin-detail-section">
                         <div className="admin-progress-container">
@@ -805,7 +808,7 @@ export default function Admin() {
                       </div>
                     )}
 
-                    {/* PROOFREADING */}
+                    {/* PROOFREADING — In Progress */}
                     {selectedOrder.translation_status === 'proofreading' && (
                       <div className="admin-detail-section">
                         <div className="admin-progress-container">
@@ -860,11 +863,12 @@ export default function Admin() {
                       </div>
                     )}
 
-                    {/* PM REVIEW / CORRECTIONS */}
+                    {/* PM REVIEW / CORRECTIONS — Review + Edit HTML */}
                     {(selectedOrder.translation_status === 'pm_review' || selectedOrder.translation_status === 'corrections') && (
                       <div className="admin-detail-section">
                         <h3><i className="fas fa-eye" style={{ color: '#dd6b20' }}></i> Translation Review (PM)</h3>
 
+                        {/* Client corrections notice */}
                         {selectedOrder.translation_status === 'corrections' && selectedOrder.correction_notes && (
                           <div style={{ background: '#fff5f5', border: '1px solid #fed7d7', borderRadius: '8px', padding: '1rem', marginBottom: '1rem' }}>
                             <strong style={{ color: '#e53e3e' }}><i className="fas fa-exclamation-triangle"></i> Client Corrections Requested:</strong>
@@ -872,6 +876,7 @@ export default function Admin() {
                           </div>
                         )}
 
+                        {/* AI corrections */}
                         {selectedOrder.ai_corrections && (
                           <div style={{ background: '#fffff0', border: '1px solid #fefcbf', borderRadius: '8px', padding: '1rem', marginBottom: '1rem' }}>
                             <strong style={{ color: '#975a16' }}><i className="fas fa-robot"></i> AI Proofreading Corrections:</strong>
@@ -1018,7 +1023,7 @@ export default function Admin() {
                       </div>
                     )}
 
-                    {/* CLIENT REVIEW */}
+                    {/* CLIENT REVIEW — Waiting */}
                     {selectedOrder.translation_status === 'client_review' && (
                       <div className="admin-detail-section">
                         <div className="admin-progress-container">
@@ -1028,6 +1033,7 @@ export default function Admin() {
                             The client ({selectedOrder.customer_email}) has received the translation and is reviewing it.
                           </p>
                         </div>
+                        {/* Preview buttons */}
                         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                           <button onClick={() => openHtmlPreview(getTranslationHtml(selectedOrder))} className="admin-tab-btn" style={{ flex: 1 }}>
                             <i className="fas fa-eye"></i> Preview Translation
@@ -1039,7 +1045,7 @@ export default function Admin() {
                       </div>
                     )}
 
-                    {/* APPROVED */}
+                    {/* APPROVED — Finalize */}
                     {selectedOrder.translation_status === 'approved' && (
                       <div className="admin-detail-section">
                         <div style={{ textAlign: 'center', padding: '1rem', marginBottom: '1rem' }}>
@@ -1087,7 +1093,7 @@ export default function Admin() {
                       </div>
                     )}
 
-                    {/* PM UPLOAD READY */}
+                    {/* PM UPLOAD READY — hint to switch tab */}
                     {selectedOrder.translation_status === 'pm_upload_ready' && (
                       <div className="admin-detail-section">
                         <div style={{ textAlign: 'center', padding: '1.5rem' }}>
