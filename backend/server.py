@@ -55,6 +55,19 @@ except ImportError:
     HAS_ANTHROPIC = False
 
 try:
+    from translation_prompt import (
+        TRANSLATION_SYSTEM_PROMPT, ANALYSIS_PROMPT,
+        PROOFREAD_PROMPT, SAMPLE_DOCUMENTS
+    )
+    HAS_TRANSLATION_PROMPT = True
+except ImportError:
+    HAS_TRANSLATION_PROMPT = False
+    TRANSLATION_SYSTEM_PROMPT = ""
+    ANALYSIS_PROMPT = ""
+    PROOFREAD_PROMPT = ""
+    SAMPLE_DOCUMENTS = {}
+
+try:
     import boto3
     HAS_BOTO3 = True
 except ImportError:
@@ -476,86 +489,165 @@ async def extract_text_from_file(file_bytes: bytes, filename: str, content_type:
 # ---------------------------------------------------------------------------
 
 class TranslationPipeline:
-    """AI-powered translation pipeline using Claude"""
+    """AI-powered certified translation pipeline using Claude.
+    Implements the full CLAUDE.md workflow: Analyze -> Translate to HTML -> Proofread -> Deliver
+    """
 
     def __init__(self):
         self.client = None
         if HAS_ANTHROPIC and ANTHROPIC_API_KEY:
             self.client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
-    async def translate(self, text: str, source_lang: str, target_lang: str,
-                        document_type: str = "", service_tier: str = "standard",
-                        ai_commands: str = "") -> dict:
-        """Step 1: AI Translation"""
+    async def analyze_document(self, text: str, source_lang: str = "",
+                                document_type: str = "") -> dict:
+        """Phase 1: Document Analysis — extract metadata from the source document."""
         if not self.client:
-            return {"translated_text": "", "error": "AI service not configured"}
-
-        system_prompt = f"""You are a professional certified translator working for TRADUX,
-a certified translation service. You provide accurate, official translations that are
-accepted by USCIS, courts, universities, and government agencies.
-
-TRANSLATION REQUIREMENTS:
-- Translate from {source_lang} to {target_lang}
-- Document type: {document_type or 'general document'}
-- Service level: {service_tier}
-- Maintain the original document's formatting and structure
-- Preserve all names, dates, numbers, and addresses exactly
-- Use proper legal/official terminology
-- Do NOT add any notes or commentary — output ONLY the translation
-{"- Additional instructions: " + ai_commands if ai_commands else ""}"""
+            return {"error": "AI service not configured", "analysis": {}}
 
         try:
             response = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
-                max_tokens=8000,
-                system=system_prompt,
-                messages=[{"role": "user", "content": f"Translate the following document:\n\n{text}"}]
+                max_tokens=1000,
+                system="You are a document analysis expert. Analyze the provided document text and return structured JSON metadata.",
+                messages=[{"role": "user", "content": f"Document text (source language hint: {source_lang or 'unknown'}, document type hint: {document_type or 'unknown'}):\n\n{text[:5000]}\n\n{ANALYSIS_PROMPT}"}]
             )
-            translated = response.content[0].text
-            return {"translated_text": translated, "tokens_used": response.usage.input_tokens + response.usage.output_tokens}
+            result_text = response.content[0].text.strip()
+            # Extract JSON from response
+            if result_text.startswith("{"):
+                analysis = json.loads(result_text)
+            else:
+                # Try to find JSON in the response
+                json_match = re.search(r'\{[\s\S]*\}', result_text)
+                if json_match:
+                    analysis = json.loads(json_match.group())
+                else:
+                    analysis = {"error": "Could not parse analysis", "raw": result_text}
+            return {"analysis": analysis, "tokens_used": response.usage.input_tokens + response.usage.output_tokens}
         except Exception as e:
-            logger.error(f"Translation error: {e}")
-            return {"translated_text": "", "error": str(e)}
+            logger.error(f"Document analysis error: {e}")
+            return {"error": str(e), "analysis": {}}
 
-    async def proofread(self, original_text: str, translated_text: str,
-                        source_lang: str, target_lang: str,
-                        document_type: str = "") -> dict:
-        """Step 2: AI Proofreading"""
+    async def translate_to_html(self, text: str, source_lang: str, target_lang: str,
+                                 document_type: str = "", service_tier: str = "standard",
+                                 ai_commands: str = "", analysis: dict = None) -> dict:
+        """Phases 2-4: Full translation to print-ready HTML following CLAUDE.md workflow."""
         if not self.client:
-            return {"proofread_text": translated_text, "corrections": [], "error": "AI not configured"}
+            return {"html": "", "error": "AI service not configured"}
 
-        system_prompt = f"""You are a senior proofreader at TRADUX certified translation service.
-Your job is to review a translation from {source_lang} to {target_lang} and correct any errors.
+        # Build the user message with context
+        user_message = f"""Translate this document following ALL phases in order (Phase 1 Analysis, Phase 2 Glossary, Phase 3 Line-by-line Translation to HTML, Phase 4 Self-Review).
 
-PROOFREADING REQUIREMENTS:
-- Check accuracy against the original text
-- Fix grammar, spelling, and punctuation errors
-- Ensure proper terminology for {document_type or 'official documents'}
-- Verify all names, dates, and numbers are correctly translated
-- Ensure the translation reads naturally in {target_lang}
-- Output the corrected translation text
-- After the corrected text, add a section "---CORRECTIONS---" listing what you changed (if anything)"""
+SOURCE LANGUAGE: {source_lang}
+TARGET LANGUAGE: {target_lang}
+DOCUMENT TYPE: {document_type or 'auto-detect'}
+SERVICE TIER: {service_tier}
+{"ADDITIONAL INSTRUCTIONS: " + ai_commands if ai_commands else ""}
+{"DOCUMENT ANALYSIS: " + json.dumps(analysis) if analysis else ""}
+
+DOCUMENT TEXT:
+{text}
+
+IMPORTANT: Output ONLY the complete HTML document. No explanation, no commentary — just the HTML starting with <!DOCTYPE html> and ending with </html>."""
 
         try:
             response = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
-                max_tokens=8000,
-                system=system_prompt,
-                messages=[{"role": "user", "content": f"ORIGINAL ({source_lang}):\n{original_text}\n\nTRANSLATION ({target_lang}):\n{translated_text}"}]
+                max_tokens=16000,
+                system=TRANSLATION_SYSTEM_PROMPT if HAS_TRANSLATION_PROMPT else self._fallback_system_prompt(source_lang, target_lang, document_type, ai_commands),
+                messages=[{"role": "user", "content": user_message}]
             )
-            result = response.content[0].text
-            parts = result.split("---CORRECTIONS---")
-            proofread_text = parts[0].strip()
-            corrections = parts[1].strip() if len(parts) > 1 else "No corrections needed."
+            result = response.content[0].text.strip()
+
+            # Extract HTML from response (in case there's extra text)
+            html = result
+            if not html.startswith("<!DOCTYPE") and not html.startswith("<html"):
+                html_match = re.search(r'(<!DOCTYPE[\s\S]*</html>)', result, re.IGNORECASE)
+                if html_match:
+                    html = html_match.group(1)
 
             return {
-                "proofread_text": proofread_text,
+                "html": html,
+                "tokens_used": response.usage.input_tokens + response.usage.output_tokens,
+            }
+        except Exception as e:
+            logger.error(f"Translation error: {e}")
+            return {"html": "", "error": str(e)}
+
+    async def proofread_html(self, original_text: str, html_translation: str,
+                              source_lang: str, target_lang: str,
+                              document_type: str = "") -> dict:
+        """Phase 5: Proofreading — review and correct the HTML translation."""
+        if not self.client:
+            return {"html": html_translation, "corrections": "AI not configured", "error": "AI not configured"}
+
+        system_prompt = PROOFREAD_PROMPT.format(
+            source_lang=source_lang,
+            target_lang=target_lang,
+            document_type=document_type or "official document"
+        ) if HAS_TRANSLATION_PROMPT else f"""You are a senior proofreader. Review this {source_lang} to {target_lang} translation.
+Check accuracy, completeness, formatting. Output the corrected HTML, then ---CORRECTIONS--- section."""
+
+        try:
+            response = self.client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=16000,
+                system=system_prompt,
+                messages=[{"role": "user", "content": f"ORIGINAL ({source_lang}):\n{original_text}\n\nHTML TRANSLATION:\n{html_translation}"}]
+            )
+            result = response.content[0].text.strip()
+
+            # Split corrections from HTML
+            parts = result.split("---CORRECTIONS---")
+            html_part = parts[0].strip()
+            corrections = parts[1].strip() if len(parts) > 1 else "No corrections needed."
+
+            # Extract clean HTML
+            if not html_part.startswith("<!DOCTYPE") and not html_part.startswith("<html"):
+                html_match = re.search(r'(<!DOCTYPE[\s\S]*</html>)', html_part, re.IGNORECASE)
+                if html_match:
+                    html_part = html_match.group(1)
+
+            return {
+                "html": html_part,
                 "corrections": corrections,
                 "tokens_used": response.usage.input_tokens + response.usage.output_tokens,
             }
         except Exception as e:
             logger.error(f"Proofreading error: {e}")
-            return {"proofread_text": translated_text, "corrections": [], "error": str(e)}
+            return {"html": html_translation, "corrections": str(e), "error": str(e)}
+
+    # Legacy methods for backward compatibility
+    async def translate(self, text: str, source_lang: str, target_lang: str,
+                        document_type: str = "", service_tier: str = "standard",
+                        ai_commands: str = "") -> dict:
+        """Legacy translate method — now calls translate_to_html and extracts text."""
+        result = await self.translate_to_html(text, source_lang, target_lang, document_type, service_tier, ai_commands)
+        return {
+            "translated_text": result.get("html", ""),
+            "tokens_used": result.get("tokens_used", 0),
+            "error": result.get("error"),
+        }
+
+    async def proofread(self, original_text: str, translated_text: str,
+                        source_lang: str, target_lang: str,
+                        document_type: str = "") -> dict:
+        """Legacy proofread method — now calls proofread_html."""
+        result = await self.proofread_html(original_text, translated_text, source_lang, target_lang, document_type)
+        return {
+            "proofread_text": result.get("html", translated_text),
+            "corrections": result.get("corrections", ""),
+            "tokens_used": result.get("tokens_used", 0),
+            "error": result.get("error"),
+        }
+
+    def _fallback_system_prompt(self, source_lang, target_lang, document_type, ai_commands):
+        return f"""You are a professional certified translator for TRADUX.
+Translate from {source_lang} to {target_lang}. Document type: {document_type or 'general'}.
+Output a complete, print-ready HTML document on US Letter paper.
+Preserve all names, dates, numbers exactly. Convert date format to MM/DD/YYYY.
+Convert times to 12h AM/PM. Convert numbers to US format.
+Use bracket notation for non-text elements: [signature:], [seal:], [stamp:], etc.
+{"Additional: " + ai_commands if ai_commands else ""}"""
 
 
 translation_pipeline = TranslationPipeline()
@@ -896,11 +988,13 @@ async def create_order_from_payment(session_id: str, quote_id: str, metadata: di
             "payment_method": "stripe",
 
             # Translation pipeline status
-            "translation_status": "received",  # received → ocr_processing → translating → proofreading → pm_review → client_review → corrections → completed
+            "translation_status": "received",  # received -> translating -> proofreading -> pm_review -> client_review -> corrections -> completed
             "original_text": "",
             "translated_text": "",
+            "translation_html": "",
             "proofread_text": "",
             "ai_corrections": "",
+            "document_analysis": "",
             "pm_approved": False,
             "client_approved": False,
             "correction_notes": "",
@@ -1044,12 +1138,26 @@ async def run_translation_pipeline(
     order_id: str, text: str, source_lang: str, target_lang: str,
     document_type: str, service_tier: str, ai_commands: str
 ):
-    """Background: OCR text → AI Translate → AI Proofread → Ready for PM"""
+    """Background: Full CLAUDE.md pipeline — Analyze → Translate to HTML → Proofread → Ready for PM"""
     try:
-        # Step 1: AI Translation
-        logger.info(f"[{order_id}] Starting AI translation...")
-        translation_result = await translation_pipeline.translate(
-            text, source_lang, target_lang, document_type, service_tier, ai_commands
+        # Phase 1: Document Analysis
+        logger.info(f"[{order_id}] Phase 1: Analyzing document...")
+        analysis_result = await translation_pipeline.analyze_document(text, source_lang, document_type)
+        analysis = analysis_result.get("analysis", {})
+
+        await db.orders.update_one(
+            {"id": order_id},
+            {"$set": {
+                "document_analysis": json.dumps(analysis) if isinstance(analysis, dict) else str(analysis),
+                "translation_status": "translating",
+                "updated_at": datetime.utcnow(),
+            }}
+        )
+
+        # Phase 2-4: Translate to HTML (includes glossary, line-by-line, and self-review)
+        logger.info(f"[{order_id}] Phases 2-4: Translating to HTML...")
+        translation_result = await translation_pipeline.translate_to_html(
+            text, source_lang, target_lang, document_type, service_tier, ai_commands, analysis
         )
 
         if translation_result.get("error"):
@@ -1063,30 +1171,32 @@ async def run_translation_pipeline(
             )
             return
 
-        translated_text = translation_result["translated_text"]
+        translation_html = translation_result["html"]
 
         await db.orders.update_one(
             {"id": order_id},
             {"$set": {
-                "translated_text": translated_text,
+                "translated_text": translation_html,
+                "translation_html": translation_html,
                 "translation_status": "proofreading",
                 "updated_at": datetime.utcnow(),
             }}
         )
 
-        # Step 2: AI Proofreading
-        logger.info(f"[{order_id}] Starting AI proofreading...")
-        proofread_result = await translation_pipeline.proofread(
-            text, translated_text, source_lang, target_lang, document_type
+        # Phase 5: AI Proofreading
+        logger.info(f"[{order_id}] Phase 5: Proofreading...")
+        proofread_result = await translation_pipeline.proofread_html(
+            text, translation_html, source_lang, target_lang, document_type
         )
 
-        proofread_text = proofread_result.get("proofread_text", translated_text)
+        proofread_html = proofread_result.get("html", translation_html)
         corrections = proofread_result.get("corrections", "")
 
         await db.orders.update_one(
             {"id": order_id},
             {"$set": {
-                "proofread_text": proofread_text,
+                "proofread_text": proofread_html,
+                "translation_html": proofread_html,
                 "ai_corrections": corrections,
                 "translation_status": "pm_review",
                 "updated_at": datetime.utcnow(),
@@ -1098,14 +1208,15 @@ async def run_translation_pipeline(
         if order:
             await email_service.send(
                 ADMIN_EMAIL,
-                f"Translation Ready for PM Review — {order.get('order_number', '')}",
+                f"Translation Ready for PM Review - {order.get('order_number', '')}",
                 email_service._base_template(f"""
                     <h2 style="color:#1a365d;">Translation Ready for Review</h2>
                     <p>Order <strong>{order.get('order_number', '')}</strong> has been translated and proofread by AI.</p>
                     <div class="info-box">
                         <p><strong>Customer:</strong> {order.get('customer_name', '')}</p>
-                        <p><strong>Languages:</strong> {order.get('source_language', '')} → {order.get('target_language', '')}</p>
-                        <p><strong>AI Corrections:</strong> {corrections or 'None'}</p>
+                        <p><strong>Languages:</strong> {order.get('source_language', '')} -> {order.get('target_language', '')}</p>
+                        <p><strong>Document Analysis:</strong> {analysis.get('document_type', 'N/A')} from {analysis.get('source_country', 'N/A')}</p>
+                        <p><strong>AI Corrections:</strong> {corrections[:200] if corrections else 'None'}</p>
                     </div>
                     <p style="text-align:center;">
                         <a href="https://tradux.online/admin" class="btn">Review Translation</a>
@@ -1113,7 +1224,7 @@ async def run_translation_pipeline(
                 """),
             )
 
-        logger.info(f"[{order_id}] Pipeline complete — ready for PM review")
+        logger.info(f"[{order_id}] Pipeline complete - ready for PM review")
 
     except Exception as e:
         logger.error(f"[{order_id}] Pipeline error: {e}")
@@ -1452,6 +1563,258 @@ async def admin_stats():
         "pending_pm_review": pending_review,
         "corrections_requested": corrections,
         "total_revenue": round(total_revenue, 2),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Test Order & Translation Workflow Endpoints
+# ---------------------------------------------------------------------------
+
+class TestOrderRequest(BaseModel):
+    document_key: str = "birth_certificate_br"  # Key from SAMPLE_DOCUMENTS
+    customer_name: str = "Test Customer"
+    customer_email: str = "test@example.com"
+    source_language: str = "portuguese"
+    target_language: str = "english"
+    custom_text: Optional[str] = None  # Override with custom document text
+
+
+@api.post("/admin/create-test-order")
+async def create_test_order(req: TestOrderRequest):
+    """Create a test order with sample document text for testing the translation pipeline."""
+    sample = SAMPLE_DOCUMENTS.get(req.document_key)
+
+    if req.custom_text:
+        original_text = req.custom_text
+        doc_type = "other"
+        doc_name = "Custom Document"
+    elif sample:
+        original_text = sample["text"]
+        doc_type = sample["type"]
+        doc_name = sample["name"]
+    else:
+        available = list(SAMPLE_DOCUMENTS.keys())
+        raise HTTPException(status_code=400, detail=f"Unknown document_key. Available: {available}")
+
+    order_count = await db.orders.count_documents({})
+    order_number = f"TDX-TEST-{order_count + 1001}"
+
+    order = {
+        "id": str(uuid.uuid4()),
+        "order_number": order_number,
+        "quote_id": "",
+        "stripe_session_id": "",
+        "customer_name": req.customer_name,
+        "customer_email": req.customer_email,
+        "customer_phone": "",
+        "service_tier": "professional",
+        "cert_type": "certified",
+        "delivery_speed": "standard",
+        "delivery_method": "email",
+        "source_language": req.source_language,
+        "target_language": req.target_language,
+        "document_type": doc_type,
+        "purpose": "Testing translation pipeline",
+        "page_count": 1,
+        "notes": f"Test order — sample document: {doc_name}",
+        "document_ids": [],
+        "base_price": 0,
+        "total_price": 0,
+        "payment_status": "paid",
+        "payment_method": "test",
+
+        "translation_status": "received",
+        "original_text": original_text,
+        "translated_text": "",
+        "translation_html": "",
+        "proofread_text": "",
+        "ai_corrections": "",
+        "document_analysis": "",
+        "pm_approved": False,
+        "client_approved": False,
+        "correction_notes": "",
+        "review_token": secrets.token_urlsafe(32),
+
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+        "is_test": True,
+    }
+
+    await db.orders.insert_one(order)
+    logger.info(f"Test order {order_number} created with document: {doc_name}")
+
+    return {
+        "status": "created",
+        "order_id": order["id"],
+        "order_number": order_number,
+        "document": doc_name,
+        "message": f"Test order created. Go to admin dashboard and start translation for {order_number}.",
+    }
+
+
+@api.get("/admin/orders/{order_id}/translation-html")
+async def get_translation_html(order_id: str):
+    """Get the HTML translation for preview/editing."""
+    order = await db.orders.find_one({"id": order_id})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    html = order.get("translation_html") or order.get("proofread_text") or order.get("translated_text") or ""
+    analysis = order.get("document_analysis", "")
+
+    return {
+        "order_id": order_id,
+        "order_number": order.get("order_number", ""),
+        "html": html,
+        "document_analysis": analysis,
+        "translation_status": order.get("translation_status", ""),
+        "ai_corrections": order.get("ai_corrections", ""),
+    }
+
+
+@api.post("/admin/update-translation-html")
+async def update_translation_html(
+    order_id: str = Body(...),
+    html: str = Body(...),
+):
+    """Admin edits the HTML translation before sending to client."""
+    result = await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "translation_html": html,
+            "proofread_text": html,
+            "updated_at": datetime.utcnow(),
+        }}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return {"status": "updated", "message": "Translation HTML updated successfully."}
+
+
+@api.post("/admin/re-translate")
+async def re_translate(req: TranslationStartRequest, background_tasks: BackgroundTasks):
+    """Re-run translation pipeline (for corrections or retries)."""
+    order = await db.orders.find_one({"id": req.order_id})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    original_text = order.get("original_text", "")
+    if not original_text.strip():
+        # Try to get text from documents
+        for doc_id in order.get("document_ids", []):
+            doc = await db.documents.find_one({"id": doc_id})
+            if doc:
+                original_text += doc.get("extracted_text", "") + "\n\n"
+
+    if not original_text.strip():
+        raise HTTPException(status_code=400, detail="No source text available for re-translation.")
+
+    # Reset status
+    await db.orders.update_one(
+        {"id": req.order_id},
+        {"$set": {
+            "translation_status": "translating",
+            "translation_html": "",
+            "translated_text": "",
+            "proofread_text": "",
+            "ai_corrections": "",
+            "updated_at": datetime.utcnow(),
+        }}
+    )
+
+    # Re-run pipeline
+    background_tasks.add_task(
+        run_translation_pipeline,
+        req.order_id,
+        original_text.strip(),
+        order.get("source_language", "portuguese"),
+        order.get("target_language", "english"),
+        order.get("document_type", ""),
+        order.get("service_tier", "standard"),
+        req.ai_commands or "",
+    )
+
+    return {"status": "started", "message": "Re-translation pipeline started."}
+
+
+@api.get("/admin/sample-documents")
+async def list_sample_documents():
+    """List available sample documents for test orders."""
+    samples = []
+    for key, doc in SAMPLE_DOCUMENTS.items():
+        samples.append({
+            "key": key,
+            "name": doc["name"],
+            "type": doc["type"],
+            "source_language": doc.get("source_language", "portuguese"),
+            "preview": doc["text"][:200] + "...",
+        })
+    return {"documents": samples}
+
+
+@api.post("/admin/upload-document-to-order")
+async def upload_document_to_order(
+    order_id: str = Form(...),
+    file: UploadFile = File(...),
+):
+    """Upload a document directly to an existing order and extract text."""
+    order = await db.orders.find_one({"id": order_id})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    file_bytes = await file.read()
+    if len(file_bytes) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 20MB)")
+
+    # Extract text
+    extraction = await extract_text_from_file(file_bytes, file.filename, file.content_type)
+
+    # Store in GridFS
+    doc_id = str(uuid.uuid4())
+    gridfs_id = await store_file_gridfs(
+        file_bytes, file.filename, file.content_type,
+        metadata={"doc_id": doc_id, "order_id": order_id}
+    )
+
+    # Store document record
+    doc_record = {
+        "id": doc_id,
+        "filename": file.filename,
+        "content_type": file.content_type,
+        "file_size": len(file_bytes),
+        "gridfs_id": gridfs_id,
+        "word_count": extraction["word_count"],
+        "page_count": extraction["page_count"],
+        "extraction_method": extraction["method"],
+        "extracted_text": extraction["text"][:10000],
+        "uploaded_at": datetime.utcnow(),
+    }
+    await db.documents.insert_one(doc_record)
+
+    # Update order with document ID and extracted text
+    existing_text = order.get("original_text", "")
+    new_text = existing_text + ("\n\n" if existing_text else "") + extraction["text"]
+
+    doc_ids = order.get("document_ids", [])
+    doc_ids.append(doc_id)
+
+    await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "document_ids": doc_ids,
+            "original_text": new_text[:50000],
+            "page_count": max(order.get("page_count", 1), extraction["page_count"]),
+            "updated_at": datetime.utcnow(),
+        }}
+    )
+
+    return {
+        "status": "uploaded",
+        "document_id": doc_id,
+        "filename": file.filename,
+        "word_count": extraction["word_count"],
+        "page_count": extraction["page_count"],
+        "extraction_method": extraction["method"],
     }
 
 
