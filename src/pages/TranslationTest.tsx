@@ -231,7 +231,10 @@ export default function TranslationTest() {
       setPhase('translating');
       toast.success('Pipeline started! Watching progress...');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Something went wrong';
+      const raw = err instanceof Error ? err.message : 'Something went wrong';
+      const message = raw === 'Failed to fetch'
+        ? 'Cannot reach the backend API. The server may be starting up (Render free tier can take ~30s). Please wait a moment and try again.'
+        : raw;
       toast.error(message);
       setPhase('error');
       setErrorMsg(message);
