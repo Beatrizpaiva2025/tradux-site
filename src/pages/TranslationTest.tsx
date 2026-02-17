@@ -40,6 +40,37 @@ interface OrderData {
 
 type PipelinePhase = 'idle' | 'creating' | 'translating' | 'proofreading' | 'pm_review' | 'error';
 
+const DEFAULT_SAMPLE_DOCS: SampleDoc[] = [
+  {
+    key: 'birth_certificate_br',
+    name: 'Certidao de Nascimento - Maria Silva',
+    type: 'birth_certificate',
+    source_language: 'portuguese',
+    preview: 'REGISTRO CIVIL DE NASCIMENTO\nCERTIDAO DE NASCIMENTO\nNome: Maria Aparecida Silva Santos...',
+  },
+  {
+    key: 'bank_statement_br',
+    name: 'Extrato Bancario - Joao Silva',
+    type: 'bank_statement',
+    source_language: 'portuguese',
+    preview: 'BANCO DO BRASIL S.A.\nEXTRATO DE CONTA CORRENTE\nAgencia: 1234-5 | Conta: 67890-1...',
+  },
+  {
+    key: 'diploma_br',
+    name: 'Diploma - Pedro Oliveira',
+    type: 'diploma',
+    source_language: 'portuguese',
+    preview: 'UNIVERSIDADE FEDERAL DO RIO DE JANEIRO\nDIPLOMA\nConferimos o grau de Bacharel em Direito...',
+  },
+  {
+    key: 'school_transcript_br',
+    name: 'Historico Escolar - Ana Costa',
+    type: 'transcript',
+    source_language: 'portuguese',
+    preview: 'HISTORICO ESCOLAR — ENSINO MEDIO\nAluna: Ana Beatriz Costa\nData de Nascimento: 15/03/2004...',
+  },
+];
+
 const PHASES = [
   { key: 'analysis', label: 'Document Analysis', icon: 'fa-search', desc: 'Extracting metadata, language, elements' },
   { key: 'glossary', label: 'Glossary & Terminology', icon: 'fa-book', desc: 'Building document-specific terminology map' },
@@ -57,7 +88,7 @@ function getPhaseIndex(status: string): number {
 }
 
 export default function TranslationTest() {
-  const [sampleDocs, setSampleDocs] = useState<SampleDoc[]>([]);
+  const [sampleDocs, setSampleDocs] = useState<SampleDoc[]>(DEFAULT_SAMPLE_DOCS);
   const [selectedDoc, setSelectedDoc] = useState('birth_certificate_br');
   const [customText, setCustomText] = useState('');
   const [useCustom, setUseCustom] = useState(false);
@@ -74,11 +105,13 @@ export default function TranslationTest() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Load sample documents
+  // Try to load sample documents from API (fallback to hardcoded defaults)
   useEffect(() => {
     fetch(`${API_URL}/admin/sample-documents`)
       .then((r) => r.json())
-      .then((data) => setSampleDocs(data.documents || []))
+      .then((data) => {
+        if (data.documents?.length) setSampleDocs(data.documents);
+      })
       .catch(() => {});
   }, []);
 
