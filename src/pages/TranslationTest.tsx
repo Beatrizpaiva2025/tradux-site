@@ -180,6 +180,18 @@ export default function TranslationTest() {
     } catch { /* ignore */ }
   };
 
+  // Wake up the Render free tier backend before making real requests
+  const wakeUpBackend = useCallback(async () => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+      await fetch(`${API_URL}/health`, { signal: controller.signal });
+      clearTimeout(timeout);
+    } catch {
+      // Ignore — the real request will fail with a clear error if backend is truly down
+    }
+  }, []);
+
   const handleStartPipeline = useCallback(async () => {
     setPhase('creating');
     setErrorMsg('');
@@ -189,6 +201,10 @@ export default function TranslationTest() {
     setOrder(null);
 
     try {
+      // Wake up backend (Render free tier may be sleeping, cold start ~50s)
+      toast.info('Connecting to server...');
+      await wakeUpBackend();
+
       // Step 1: Create test order
       const createResp = await fetch(`${API_URL}/admin/create-test-order`, {
         method: 'POST',
@@ -233,13 +249,13 @@ export default function TranslationTest() {
     } catch (err) {
       const raw = err instanceof Error ? err.message : 'Something went wrong';
       const message = raw === 'Failed to fetch'
-        ? 'Cannot reach the backend API. The server may be starting up (Render free tier can take ~30s). Please wait a moment and try again.'
+        ? 'Cannot reach the backend API. The server may be starting up (Render free tier can take ~60s). Please wait a moment and try again.'
         : raw;
       toast.error(message);
       setPhase('error');
       setErrorMsg(message);
     }
-  }, [selectedDoc, useCustom, customText, aiCommands]);
+  }, [selectedDoc, useCustom, customText, aiCommands, wakeUpBackend]);
 
   const handleReset = () => {
     setPhase('idle');
@@ -421,7 +437,7 @@ export default function TranslationTest() {
                 <div className="tt-phases-track">
                   {PHASES.map((p, i) => {
                     let status: 'done' | 'active' | 'pending' | 'error' = 'pending';
-                    if (phase === 'error' && phaseIndex === -1) status = 'error';
+                    if (phase === 'error' && phaseIndex >= 0 && i === phaseIndex) status = 'error';
                     else if (i < phaseIndex) status = 'done';
                     else if (i === phaseIndex && !isDone) status = 'active';
                     else if (isDone) status = 'done';
