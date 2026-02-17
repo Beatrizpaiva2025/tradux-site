@@ -1842,6 +1842,42 @@ async def download_document(doc_id: str):
 
 
 # ---------------------------------------------------------------------------
+# Quick Translation (Test Page)
+# ---------------------------------------------------------------------------
+
+class TranslateTextRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=10000)
+    source_language: str = "portuguese"
+    target_language: str = "english"
+
+@api.post("/translate-text")
+async def translate_text(req: TranslateTextRequest):
+    """Quick text translation endpoint for the test page."""
+    pipeline = TranslationPipeline()
+    if not pipeline.client:
+        raise HTTPException(status_code=503, detail="AI translation service not configured")
+
+    try:
+        client = pipeline.client
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=4000,
+            system=f"You are a professional certified translator. Translate the following text from {req.source_language} to {req.target_language}. Output ONLY the translated text, no explanations or commentary.",
+            messages=[{"role": "user", "content": req.text}]
+        )
+        translated = response.content[0].text.strip()
+        return {
+            "translated_text": translated,
+            "source_language": req.source_language,
+            "target_language": req.target_language,
+            "tokens_used": response.usage.input_tokens + response.usage.output_tokens,
+        }
+    except Exception as e:
+        logger.error(f"Quick translation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
 # Mount router
 # ---------------------------------------------------------------------------
 

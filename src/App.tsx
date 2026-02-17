@@ -10,6 +10,7 @@ import Success from "./pages/Success";
 import Cancel from "./pages/Cancel";
 import Admin from "./pages/Admin";
 import Review from "./pages/Review";
+import TranslationTest from "./pages/TranslationTest";
 
 
 function Router() {
@@ -20,6 +21,7 @@ function Router() {
       <Route path={"/success"} component={Success} />
       <Route path={"/cancel"} component={Cancel} />
       <Route path={"/admin"} component={Admin} />
+      <Route path={"/translate"} component={TranslationTest} />
       <Route path={"/review/:orderId"} component={Review} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
