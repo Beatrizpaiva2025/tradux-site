@@ -421,7 +421,7 @@ export default function TranslationTest() {
                 <div className="tt-phases-track">
                   {PHASES.map((p, i) => {
                     let status: 'done' | 'active' | 'pending' | 'error' = 'pending';
-                    if (phase === 'error' && phaseIndex === -1) status = 'error';
+                    if (phase === 'error' && phaseIndex >= 0 && i === phaseIndex) status = 'error';
                     else if (i < phaseIndex) status = 'done';
                     else if (i === phaseIndex && !isDone) status = 'active';
                     else if (isDone) status = 'done';
