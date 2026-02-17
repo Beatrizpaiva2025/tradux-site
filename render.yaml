@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: tradux-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    region: oregon
+    plan: free
+    envVars:
+      - key: MONGO_URL
+        sync: false
+      - key: DB_NAME
+        value: tradux
+      - key: CORS_ORIGINS
+        value: "https://tradux.online,https://www.tradux.online,https://tradux-site.vercel.app,http://localhost:5173"
+      - key: STRIPE_API_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SENDER_EMAIL
+        value: "TRADUX <orders@tradux.online>"
+      - key: ADMIN_EMAIL
+        value: "contact@tradux.online"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+    healthCheckPath: /api/health
